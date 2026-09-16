@@ -88,6 +88,7 @@ using Present = long(__stdcall*)(IDirect3DDevice9*, RECT*, RECT*, HWND, RGNDATA*
 long __stdcall hooked_present(IDirect3DDevice9* device, RECT* src_rect, RECT* dest_rect, HWND dest_wnd_override, RGNDATA* dirty_region);
 
 using DrawModelExecute = void(__thiscall*)(IVModelRender*, IMatRenderContext*, const DrawModelState_t&, const ModelRenderInfo_t&, matrix3x4_t*);
+void __fastcall hooked_drawmodelexecute(IVModelRender* ecx, void* edx, IMatRenderContext* context, const DrawModelState_t& state, const ModelRenderInfo_t& info, matrix3x4_t* bone_world);
 
 using FrameStageNotify = void(__stdcall*)(ClientFrameStage_t);
 void __stdcall hooked_framestagenotify(ClientFrameStage_t stage);

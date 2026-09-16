@@ -107,6 +107,9 @@
     <ClCompile Include="hooks\hooked_doextrabonesprocessing.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="hooks\hooked_drawmodelexecute.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
     <ClCompile Include="features\movement.cpp">
       <Filter>features</Filter>
     </ClCompile>

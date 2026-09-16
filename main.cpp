@@ -124,13 +124,13 @@ DWORD WINAPI main_function(LPVOID module_address)
 	ctx->days = json_data[crypt_str("remaining_days")].get <std::string> ();
 	ctx->user_id = json_data[crypt_str("user_id")].get <int> ();
 #else
-	//if (!AllocConsole())
-	//	return EXIT_FAILURE;
+	// if (!AllocConsole())
+		// return EXIT_FAILURE;
 
 	FILE* file;
 
-	//if (freopen_s(&file, crypt_str("CONOUT$"), crypt_str("w"), stdout))
-		//return EXIT_FAILURE;
+	// if (freopen_s(&file, crypt_str("CONOUT$"), crypt_str("w"), stdout))
+		// return EXIT_FAILURE;
 #endif
 
 	interfaces_manager = new Interfaces;
@@ -180,6 +180,8 @@ DWORD WINAPI main_function(LPVOID module_address)
 
 	hooks_initialize();
 	proxy->initialize();
+
+	chams->initialize();
 
 	auto tier0 = GetModuleHandle(crypt_str("tier0.dll"));
 

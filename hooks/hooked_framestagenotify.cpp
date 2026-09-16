@@ -14,6 +14,7 @@
 #include "..\features\draw_beams.h"
 
 #include "..\features\world_color.h"
+#include "..\features\chams.h"
 #include "..\features\spectator_list.h"
 #include "..\features\dormant.h"
 #include "..\features\logs.h"
@@ -461,6 +462,18 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 
 				shots.erase(current_shot);
 			}
+		}
+
+		chams->attachment_info.clear();
+
+		for (auto i = 1; i <= globals->maxclients; ++i)
+		{
+			auto player = crypt_ptr <Player> ((Player*)entitylist->GetClientEntity(i));
+
+			if (!player || player.get() == ctx->local().get())
+				continue;
+
+			chams->attachment_info[i] = Attachment_info(player->m_iTeamNum(), i);
 		}
 
 		animations->run();

@@ -96,6 +96,9 @@ void hooks_initialize()
 	hooks_manager->hooks[HOOK_ENGINE]->hook_function((DWORD)hooked_isconnected, crypt_hash_n(27));
 	hooks_manager->hooks[HOOK_ENGINE]->hook_function((DWORD)hooked_getscreenaspectratio, crypt_hash_n(101));
 
+	hooks_manager->hooks[HOOK_MODELRENDER] = new vmthook((PDWORD*)modelrender.get());
+	hooks_manager->hooks[HOOK_MODELRENDER]->hook_function((DWORD)hooked_drawmodelexecute, crypt_hash_n(21));
+
 
 
 
