@@ -164,11 +164,12 @@ namespace core::tabs::settings
 	void configs_second_tab()
 	{
 		imgui_ex::input_text(crypt_str("Name"), name, 32, ImVec2(491.0f, 30.0f));
+		const auto has_selected_config = config->selected_config >= 0 && config->selected_config < (int)config->files.size();
 		{
 
 		}
 
-		if (imgui_ex::button(crypt_str("Load"), ImVec2(240.0f, 30.0f)))
+		if (imgui_ex::button(crypt_str("Load"), ImVec2(240.0f, 30.0f)) && has_selected_config)
 		{		
 			config->load(config->files.at(config->selected_config));
 			config->config_files();			
@@ -184,14 +185,14 @@ namespace core::tabs::settings
 				config->config_files();
 				std::memset(name, 0, sizeof(name));
 			}			
-			else
+			else if (has_selected_config)
 			{				
 				config->save(config->files.at(config->selected_config));
 				config->config_files();
 			}	
 		}	
 
-		if (imgui_ex::button(crypt_str("Remove"), ImVec2(240.0f, 30.0f)))
+		if (imgui_ex::button(crypt_str("Remove"), ImVec2(240.0f, 30.0f)) && has_selected_config)
 		{
 			config->remove(config->files.at(config->selected_config));
 			config->config_files();

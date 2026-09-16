@@ -457,7 +457,12 @@ void Config::load(std::string config)
 		std::string name = j[crypt_str("name")];
 		int type = j[crypt_str("type")].get<int>();
 		
-		auto item = items.at(name);
+		auto item_it = items.find(name);
+
+		if (item_it == items.end() || item_it->second.type != type)
+			continue;
+
+		auto& item = item_it->second;
 		
 		if (type == ITEM_INT)
 			*(int*)item.pointer.get() = j[crypt_str("value")].get<int>(); //-V206
@@ -473,7 +478,14 @@ void Config::load(std::string config)
 			for (nlohmann::json::iterator it = ja.begin(); it != ja.end(); ++it)
 				a.push_back(*it);
 
-			*(KeyBind*)item.pointer.get() = KeyBind(name, (int)a[0], DEPENDENCE_NONE, (int)a[1]);
+			if (a.size() < 2)
+				continue;
+
+			auto& key_bind = *(KeyBind*)item.pointer.get();
+			key_bind.mode = a[0];
+			key_bind.key = a[1];
+			key_bind.state = false;
+			key_bind.holding = false;
 		}
 		else if (type == ITEM_FLOAT_COLOR_ARRAY)
 		{
@@ -482,6 +494,9 @@ void Config::load(std::string config)
 
 			for (nlohmann::json::iterator it = ja.begin(); it != ja.end(); ++it)
 				a.push_back(*it);
+
+			if (a.size() < 4)
+				continue;
 
 			memcpy(item.pointer.get(), a.data(), sizeof(float) * 4);
 		}
@@ -553,6 +568,9 @@ void Config::config_files()
 
 		FindClose(hFind);
 	}
+
+	if (selected_config < 0 || selected_config >= (int)files.size())
+		selected_config = -1;
 }
 
 
