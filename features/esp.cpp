@@ -204,6 +204,11 @@ void Esp::run()
 	auto update_alpha = true;
 	auto radar_base = FindHudElement(hud_ptr, crypt_str("CCSGO_HudRadar"));
 	auto hud_radar = (CCSGO_HudRadar*)(radar_base - 0x14);
+	const auto offscreen_enabled = config->visuals.world.offscreen_enable;
+	int screen_width = 0, screen_height = 0;
+
+	if (offscreen_enabled)
+		engine->GetScreenSize(screen_width, screen_height);
 
 	dormant->start();
 
@@ -310,22 +315,21 @@ void Esp::run()
 		else
 			player_is = LOCAL;
 
-		Vector screenPos;
-		debugoverlay->ScreenPosition(player->get_shoot_position_abs(), screenPos);
-
-		static int width, height;
-		engine->GetScreenSize(width, height);
-
-		auto invalid_screen = screenPos.x < 0 || screenPos.y < 0 || screenPos.x > width || screenPos.y > height;
-
-		if (config->visuals.world.offscreen_enable && invalid_screen && player_is == ENEMY && ctx->local()->valid())
+		if (offscreen_enabled && player_is == ENEMY && ctx->local()->valid())
 		{
-			auto alpha_modifier = 1.0f;
+			Vector screenPos;
+			debugoverlay->ScreenPosition(player->get_shoot_position_abs(), screenPos);
+
+			auto invalid_screen = screenPos.x < 0 || screenPos.y < 0 || screenPos.x > screen_width || screenPos.y > screen_height;
+
+			if (invalid_screen)
+			{
+				auto alpha_modifier = 1.0f;
 
 			Vector viewAngles;
 			engine->GetViewAngles(viewAngles);
 
-			auto screenCenter = Vector2D(width * 0.5f, height * 0.5f);
+			auto screenCenter = Vector2D(screen_width * 0.5f, screen_height * 0.5f);
 			auto angleYawRad = DirectX::XMConvertToRadians(viewAngles.y - math::calculate_angle(ctx->shoot_position, player->get_shoot_position_abs()).y - 90.0f);
 
 			auto radius = config->player_list.player_settings[i].hightlight ? config->player_list.player_settings[i].hightlight_distance : config->visuals.world.offscreen_distance;
@@ -334,8 +338,8 @@ void Esp::run()
 			auto angle_cos = 0.0f, angle_sin = 0.0f;
 			DirectX::XMScalarSinCosEst(&angle_sin, &angle_cos, angleYawRad);
 
-			auto newPointX = screenCenter.x + ((((width - (size * 3)) * 0.5f) * (radius / 100.0f)) * angle_cos) + (int)(6.0f * (((float)size - 4.0f) / 16.0f));
-			auto newPointY = screenCenter.y + ((((height - (size * 3)) * 0.5f) * (radius / 100.0f)) * angle_sin);
+			auto newPointX = screenCenter.x + ((((screen_width - (size * 3)) * 0.5f) * (radius / 100.0f)) * angle_cos) + (int)(6.0f * (((float)size - 4.0f) / 16.0f));
+			auto newPointY = screenCenter.y + ((((screen_height - (size * 3)) * 0.5f) * (radius / 100.0f)) * angle_sin);
 
 			std::array <Vector2D, 3> points
 			{
@@ -377,8 +381,9 @@ void Esp::run()
 				Color(config->player_list.player_settings[i].hightlight ? config->player_list.player_settings[i].hightlight_color_out : config->visuals.world.offscreen_color_out);
 			temp_out.SetAlpha(std::clamp((int)(temp_out.a() * esp->esp_alpha_fade[i] * alpha_modifier), 0, 255));
 
-			renderer_imgui.RenderTriangleFilled(points[0].x, points[0].y, points[1].x, points[1].y, points[2].x, points[2].y, temp);
-			renderer_imgui.RenderTriangle(points[0].x, points[0].y, points[1].x, points[1].y, points[2].x, points[2].y, temp_out);
+				renderer_imgui.RenderTriangleFilled(points[0].x, points[0].y, points[1].x, points[1].y, points[2].x, points[2].y, temp);
+				renderer_imgui.RenderTriangle(points[0].x, points[0].y, points[1].x, points[1].y, points[2].x, points[2].y, temp_out);
+			}
 		}
 
 		if (!get_bbox(player, boxes[i]))
