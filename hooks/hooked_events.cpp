@@ -105,7 +105,7 @@ void Events::FireGameEvent(IGameEvent* event)
 					ray.Init(current_shot->shoot_position, position);
 					enginetrace->ClipRayToEntity(ray, MASK_SHOT_HULL | CONTENTS_HITBOX, player.get(), &trace);
 
-					if (trace.hit_entity == player.get())
+					if (trace.hit_entity == player.get() && trace.hitbox == current_shot->hitbox)
 						current_shot->impact_hit = true;
 
 					if (!current_shot->impact_hit)

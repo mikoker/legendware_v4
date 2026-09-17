@@ -207,6 +207,7 @@ struct Shot
 	int command_number = 0;
 	int tickcount = 0;
 	int event_tickcount = 0;
+	int hitbox = -1;
 	int hitgroup = -1;
 	int expected_impacts = 1;
 	int impact_count = 0;
