@@ -671,10 +671,10 @@ void Aim::automatic_stop(crypt_ptr <CUserCmd> cmd)
 	backup_forwardmove = cmd->forwardmove;
 	backup_sidemove = cmd->sidemove;
 
-	if (!config->rage.weapon[ctx->weapon_config].automatic_stop)
+	if (ctx->weapon_config < 0 || ctx->weapon_config >= WEAPON_CONFIG_MAX)
 		return;
 
-	if (ctx->weapon_config == WEAPON_CONFIG_INVALID)
+	if (!config->rage.weapon[ctx->weapon_config].automatic_stop)
 		return;
 
 	if (ctx->weapon_config == WEAPON_CONFIG_TASER)
