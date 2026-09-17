@@ -46,13 +46,10 @@ void Events::FireGameEvent(IGameEvent* event)
 
 			for (auto& shot : shots)
 			{
-				if (shot.start && shot.impacts)
-				{
+				if (shot.start && shot.impact_count >= shot.expected_impacts)
 					shot.end = true;
-					continue;
-				}
 
-				if (shot.end)
+				if (shot.start || shot.end)
 					continue;
 
 				current_shot = &shot;
@@ -83,10 +80,10 @@ void Events::FireGameEvent(IGameEvent* event)
 
 			for (auto& shot : shots)
 			{
-				if (!shot.start)
+				if (!shot.start || shot.end)
 					continue;
 
-				if (shot.end)
+				if (shot.impact_count >= shot.expected_impacts)
 					continue;
 
 				current_shot = &shot;
@@ -121,6 +118,7 @@ void Events::FireGameEvent(IGameEvent* event)
 					current_shot->enemy_death = true;
 
 				current_shot->impacts = true;
+				++current_shot->impact_count;
 			}
 		}
 	}
@@ -200,15 +198,15 @@ void Events::FireGameEvent(IGameEvent* event)
 
 			crypt_ptr <Shot> current_shot;
 
-			for (auto& shot : shots)
+			for (auto shot = shots.rbegin(); shot != shots.rend(); ++shot)
 			{
-				if (!shot.start)
+				if (!shot->start || shot->end)
 					continue;
 
-				if (shot.end)
+				if (shot->index != userid_id || !shot->impacts)
 					continue;
 
-				current_shot = &shot;
+				current_shot = &*shot;
 				break;
 			}
 

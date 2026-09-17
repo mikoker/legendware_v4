@@ -637,8 +637,10 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 
 	shot.safe = final_target.point.safe >= 5;
 	shot.index = final_target.data->i;
+	shot.command_number = cmd->command_number;
 	shot.tickcount = globals->tickcount;
 	shot.hitgroup = final_target.hitgroup;
+	shot.expected_impacts = max(ctx->weapon_data()->bullets, 1);
 	shot.distance = ctx->shoot_position.DistTo(final_target.point.point);
 	shot.shoot_position = ctx->shoot_position;
 	shot.player = final_target.player;

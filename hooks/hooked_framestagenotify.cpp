@@ -330,7 +330,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 					current_shot = shot;
 					break;
 				}
-				else if (shot->impacts && globals->tickcount > shot->event_tickcount)
+				else if (shot->impact_count >= shot->expected_impacts && globals->tickcount > shot->event_tickcount)
 				{
 					current_shot = shot;
 					break;

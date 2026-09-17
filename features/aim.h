@@ -204,9 +204,12 @@ struct Shot
 	bool latency = false;
 
 	int index = 0;
+	int command_number = 0;
 	int tickcount = 0;
 	int event_tickcount = 0;
 	int hitgroup = -1;
+	int expected_impacts = 1;
+	int impact_count = 0;
 
 	float distance = 0.0f;
 
