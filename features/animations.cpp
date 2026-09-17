@@ -73,6 +73,13 @@ void Animations::run()
 
 		auto previous_simulation_time = player_data[i].simulation_time;
 		auto current_simulation_time = player->m_flSimulationTime();
+		auto max_previous_simtime = player_data[i].max_previous_simtime;
+
+		if (previous_simulation_time > 0.0f && current_simulation_time <= previous_simulation_time)
+			continue;
+
+		if (convars_manager->convars[CONVAR_CL_LAGCOMPENSATION]->GetBool() && max_previous_simtime > 0.0f && current_simulation_time <= max_previous_simtime)
+			continue;
 
 		player_data[i].simulation_time_old = max(previous_simulation_time, player_data[i].simulation_time_old);
 		player_data[i].simulation_time = current_simulation_time;
@@ -82,7 +89,13 @@ void Animations::run()
 				record.invalid = true;
 
 		player->m_bClientSideAnimation() = true;
-		update(player, &animation_data[i].emplace_front(AnimationData(i)));
+		auto data = crypt_ptr<AnimationData>(&animation_data[i].emplace_front(AnimationData(i)));
+
+		if (!update(player, data))
+		{
+			animation_data[i].pop_front();
+			continue;
+		}
 
 		while (animation_data[i].size() > 64)
 			animation_data[i].pop_back();
@@ -105,7 +118,7 @@ void Animations::run()
 	}
 }
 
-void Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> data)
+bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> data)
 {
 	auto is_float_invalid = [](float value) -> bool
 	{
@@ -117,7 +130,7 @@ void Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 	if (!animation_state)
 	{
 		call_virtual <void(__thiscall*)(void*)>(player.get(), INDEX_UPDATE_CLIENTSIDE_ANIMATION)(player.get());
-		return;
+		return false;
 	}
 
 	crypt_ptr <AnimationData> previous_data = nullptr;
@@ -719,6 +732,8 @@ void Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 		data->invalid = data->simulation_time < player_data[data->i].max_previous_simtime;
 		player_data[data->i].max_previous_simtime = max(data->simulation_time, player_data[data->i].max_previous_simtime);
 	}
+
+	return true;
 }
 
 void Animations::resolver_yaw(crypt_ptr <Player> player, crypt_ptr <AnimationData> record, crypt_ptr <AnimationData> previous)

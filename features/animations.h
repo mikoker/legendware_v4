@@ -312,6 +312,6 @@ public:
 	PlayerData player_data[65];
 
 	void resolver_yaw(crypt_ptr <Player> player, crypt_ptr <AnimationData> record, crypt_ptr <AnimationData> previous);
-	virtual void update(crypt_ptr <Player> player, crypt_ptr <AnimationData> data);
+	virtual bool update(crypt_ptr <Player> player, crypt_ptr <AnimationData> data);
 	virtual void run();
 };
