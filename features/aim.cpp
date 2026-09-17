@@ -426,7 +426,7 @@ void Aim::scan()
 
 			for (auto& aim : aim_players)
 			{
-				auto hit_chance = exploits->double_tap_shot ? (float)config->rage.weapon[ctx->weapon_config].double_tap_hit_chance : (float)config->rage.weapon[ctx->weapon_config].hit_chance;
+				auto hit_chance = exploits->double_tap ? (float)config->rage.weapon[ctx->weapon_config].double_tap_hit_chance : (float)config->rage.weapon[ctx->weapon_config].hit_chance;
 				auto minimum_damage = config->rage.weapon[ctx->weapon_config].minimum_damage;
 
 				if (minimum_damage > 100)
@@ -524,7 +524,7 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	final_target.data->apply();
 	auto angle = math::calculate_angle(ctx->shoot_position, final_target.point.point);
 
-	if (!jump_scout && !exploits->double_tap_shot && ctx->weapon_config != WEAPON_CONFIG_TASER && !is_hit_chanced((float)config->rage.weapon[ctx->weapon_config].hit_chance, angle, MATRIX_MAIN, final_target.hitbox, final_target.player, final_target.data, true, (int)min((float)final_target.damage * (float)config->rage.weapon[ctx->weapon_config].hit_chance * 0.01f, (float)final_target.player->m_iHealth())))
+	if (!jump_scout && !exploits->double_tap && ctx->weapon_config != WEAPON_CONFIG_TASER && !is_hit_chanced((float)config->rage.weapon[ctx->weapon_config].hit_chance, angle, MATRIX_MAIN, final_target.hitbox, final_target.player, final_target.data, true, (int)min((float)final_target.damage * (float)config->rage.weapon[ctx->weapon_config].hit_chance * 0.01f, (float)final_target.player->m_iHealth())))
 		return;
 
 	cmd->buttons |= IN_ATTACK;
@@ -942,7 +942,7 @@ void Aim::scan_hitboxes(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 		hitboxes.emplace_back(Hitbox(config->rage.weapon[ctx->weapon_config].safe_hitboxes[5] == 1, config->rage.weapon[ctx->weapon_config].safe_hitboxes[5] == 2, HITBOX_LEFT_FOREARM));
 	}
 
-	auto hit_chance = exploits->double_tap_shot ? (float)config->rage.weapon[ctx->weapon_config].double_tap_hit_chance : (float)config->rage.weapon[ctx->weapon_config].hit_chance;
+	auto hit_chance = exploits->double_tap ? (float)config->rage.weapon[ctx->weapon_config].double_tap_hit_chance : (float)config->rage.weapon[ctx->weapon_config].hit_chance;
 	auto minimum_damage = config->rage.weapon[ctx->weapon_config].minimum_damage;
 
 	if (minimum_damage > 100)
