@@ -961,6 +961,7 @@ void Aim::scan_hitboxes(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 	}
 
 	auto body_aim = true;
+	auto best_body_damage = 0;
 	auto found_safe = 0;
 
 	Vector view_angle;
@@ -969,15 +970,17 @@ void Aim::scan_hitboxes(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 	{
 		auto none_body_hitbox = hitbox.hitbox < HITBOX_PELVIS || hitbox.hitbox > HITBOX_UPPER_CHEST;
 
-		if (body_aim && none_body_hitbox && (config->rage.weapon[ctx->weapon_config].body_aim || config->player_list.player_settings[data->i].force_body_aim || config->rage.weapon[ctx->weapon_config].force_body_aim_if_lethal && player->m_iHealth() <= ctx->weapon_data()->damage)) //-V648
+		if (body_aim && none_body_hitbox && best_body_damage > 0)
 		{
 			body_aim = false;
 
-			if (config->rage.weapon[ctx->weapon_config].body_aim == 2 || config->player_list.player_settings[data->i].force_body_aim || config->rage.weapon[ctx->weapon_config].force_body_aim_if_lethal && player->m_iHealth() <= ctx->weapon_data()->damage) //-V648
+			if (config->rage.weapon[ctx->weapon_config].body_aim == 2 || config->player_list.player_settings[data->i].force_body_aim)
 				break;
-			else if (final_target.damage >= minimum_damage)
+			else if (config->rage.weapon[ctx->weapon_config].force_body_aim_if_lethal && best_body_damage >= player->m_iHealth())
 				break;
-			else if (config->rage.weapon[ctx->weapon_config].body_aim && exploits->double_tap && (float)final_target.damage >= (float)player->m_iHealth() * 0.5f)
+			else if (config->rage.weapon[ctx->weapon_config].body_aim == 1 && best_body_damage >= minimum_damage)
+				break;
+			else if (config->rage.weapon[ctx->weapon_config].body_aim && exploits->double_tap && (float)best_body_damage >= (float)player->m_iHealth() * 0.5f)
 				break;
 		}
 
@@ -1024,9 +1027,6 @@ void Aim::scan_hitboxes(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 			if (point.penetration_info.damage < minimum_damage)
 				continue;
 
-			if (point.penetration_info.penetration_count < final_target.penetration_count)
-				continue;
-
 			if (!hitbox_equal(point.penetration_info.hitbox, hitbox.hitbox))
 				continue;
 
@@ -1064,6 +1064,12 @@ void Aim::scan_hitboxes(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 			}
 
 			if (!is_hit_chanced(hit_chance, angle, MATRIX_MAIN, hitbox.hitbox, player, data) && !jump_scout)
+				continue;
+
+			if (!none_body_hitbox)
+				best_body_damage = max(best_body_damage, point.penetration_info.damage);
+
+			if (point.penetration_info.penetration_count < final_target.penetration_count)
 				continue;
 
 			if (point.penetration_info.damage > final_target.damage)
