@@ -502,13 +502,16 @@ void Config::load(std::string config)
 		}
 		else if (type == ITEM_INT_ARRAY)
 		{
-			auto ptr = static_cast<std::vector <int>*> (item.pointer.get());
-			ptr->clear();
-
+			std::vector<int> values;
 			nlohmann::json ja = nlohmann::json::parse(j[crypt_str("value")].get<std::string>().c_str());
 
 			for (nlohmann::json::iterator it = ja.begin(); it != ja.end(); ++it)
-				ptr->push_back(*it);
+				values.push_back(*it);
+
+			if (item.array_size > 0 && values.size() != item.array_size)
+				continue;
+
+			*static_cast<std::vector <int>*> (item.pointer.get()) = std::move(values);
 		}
 	}
 }
