@@ -498,8 +498,6 @@ void Aim::scan()
 			}
 		}
 
-		if (final_target.data)
-			additional_index -= 3;
 	}
 }
 
