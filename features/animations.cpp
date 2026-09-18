@@ -788,7 +788,7 @@ void Animations::resolver_yaw(crypt_ptr <Player> player, crypt_ptr <AnimationDat
 	auto max_desync = clamp(fabsf(record->animation_state.get_desync_delta()), 0.0f, 60.0f);
 	auto on_ground = record->flags & FL_ONGROUND;
 	auto moving = on_ground && record->velocity.Length2D() > 0.1f && record->server_layers[6].m_flPlaybackRate > 0.0f;
-	auto lby_updated = !state.has_lby || fabsf(math::angle_diff(record->lower_body_yaw_target, state.last_lby)) > 1.0f;
+	auto lby_updated = state.has_lby && fabsf(math::angle_diff(record->lower_body_yaw_target, state.last_lby)) > 1.0f;
 
 	auto side_for_yaw = [&](float yaw)
 	{
@@ -815,7 +815,7 @@ void Animations::resolver_yaw(crypt_ptr <Player> player, crypt_ptr <AnimationDat
 		return side;
 	};
 
-	if (lby_updated)
+	if (!state.has_lby || lby_updated)
 	{
 		state.last_lby = record->lower_body_yaw_target;
 		state.last_lby_update_time = record->simulation_time;
