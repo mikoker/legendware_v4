@@ -116,6 +116,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 			ctx->buy_count = 2;
 			ctx->damage_marker.clear();
 			ctx->shots_data.clear();
+			shots.clear();
 			world_color->force_update = true;
 
 			gamerules = nullptr;

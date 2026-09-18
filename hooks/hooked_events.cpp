@@ -296,11 +296,12 @@ void Events::FireGameEvent(IGameEvent* event)
 		ctx->last_round_half = false;
 
 		dormant->set_round_start_time(globals->curtime + 1.0f);
+		shots.clear();
 		for (auto i = 0; i < 65; ++i)
 		{
-
-
 			ctx->abs_missed[i] = 0;
+			memset(ctx->missed[i], 0, sizeof(ctx->missed[i]));
+			animations->player_data[i].reset();
 			esp->reset_animation(i);
 		}
 	}

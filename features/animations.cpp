@@ -718,6 +718,7 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 	data->lower_body_yaw_target = backup_lower_body_yaw_target;
 	data->simulation_time = player->m_flSimulationTime();
 	data->origin = player->m_vecOrigin();
+	data->angles = player->m_angEyeAngles();
 	resolver_yaw(player, data, previous_data);
 
 	if (!config->player_list.player_settings[data->i].force_body_yaw)
