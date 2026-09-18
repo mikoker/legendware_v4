@@ -643,7 +643,7 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 		memcpy(player->get_animation_layer().get(), backup_layers, player->get_animation_layers_count() * sizeof(AnimationLayer));
 	};
 
-	auto roll = 0.0f;
+	auto roll = clamp(player->GetAbsAngles().z, -50.0f, 50.0f);
 
 	if (config->player_list.player_settings[data->i].force_roll)
 		roll = clamp((float)config->player_list.player_settings[data->i].roll, -50.0f, 50.0f);
@@ -757,6 +757,7 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 
 	memcpy(player->get_animation_layer().get(), data->layers, player->get_animation_layers_count() * sizeof(AnimationLayer));
 	data->store(player, false);
+	data->roll = roll;
 	state_data.animation_state = *animation_state.get();
 	*state_slot = entity_animation_state;
 
