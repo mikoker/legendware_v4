@@ -604,16 +604,41 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	{
 		switch (side)
 		{
-		case LAYERS_ORIGINAL:
-			return crypt_str("original");
-		case LAYERS_ZERO:
+		case MATRIX_MAIN:
+			return crypt_str("main");
+		case MATRIX_ZERO:
 			return crypt_str("zero");
-		case LAYERS_FIRST:
+		case MATRIX_FIRST:
 			return crypt_str("first");
-		case LAYERS_SECOND:
+		case MATRIX_FIRST_LOW:
+			return crypt_str("first_low");
+		case MATRIX_SECOND:
 			return crypt_str("second");
+		case MATRIX_SECOND_LOW:
+			return crypt_str("second_low");
 		}
-		return crypt_str("custom");
+		return crypt_str("unknown");
+	};
+
+	auto get_resolver_evidence = [](int evidence) -> string
+	{
+		switch (evidence)
+		{
+		case RESOLVER_NONE:
+			return crypt_str("none");
+		case RESOLVER_MOVING_LAYER:
+			return crypt_str("moving_layer");
+		case RESOLVER_LBY_UPDATE:
+			return crypt_str("lby_update");
+		case RESOLVER_JITTER:
+			return crypt_str("jitter");
+		case RESOLVER_LAST_MOVE:
+			return crypt_str("last_move");
+		case RESOLVER_BRUTE_FORCE:
+			return crypt_str("brute_force");
+		}
+
+		return crypt_str("unknown");
 	};
 
 	log += crypt_str("Fired shot at ") + (string)player_info.szName;
@@ -624,8 +649,9 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	log += crypt_str(", backtrack: ") + to_string(backtrack_ticks);
 	log += crypt_str(", choke: ") + to_string(final_target.data->choke);
 	log += crypt_str(", safe: ") + to_string(final_target.point.safe);
+	log += crypt_str(", visible: ") + to_string(final_target.visible);
 	log += crypt_str(", penetration count: ") + to_string(final_target.penetration_count);
-	//log += crypt_str(", resolver type: ") + get_resolver_type(final_target.data->resolver_type);
+	log += crypt_str(", resolver evidence: ") + get_resolver_evidence(final_target.data->resolver_type);
 	log += crypt_str(", resolver side: ") + get_resolver_side(final_target.data->resolver_side);
 
 	logs->add(log, Color::LightBlue, crypt_str("[ SHOT ] "));
