@@ -38,12 +38,16 @@ void Animations::run()
 		{
 			animation_data[i].clear();
 			player_data[i].reset();
+			ctx->abs_missed[i] = 0;
+			memset(ctx->missed[i], 0, sizeof(ctx->missed[i]));
 			continue;
 		}
 		else if (player->IsDormant())
 		{
 			animation_data[i].clear();
 			player_data[i].reset();
+			ctx->abs_missed[i] = 0;
+			memset(ctx->missed[i], 0, sizeof(ctx->missed[i]));
 			continue;
 		}
 
@@ -904,17 +908,10 @@ void Animations::resolver_yaw(crypt_ptr <Player> player, crypt_ptr <AnimationDat
 	if (on_ground && ctx->abs_missed[record->i] > 0)
 	{
 		const int candidates[] = { MATRIX_FIRST, MATRIX_SECOND, MATRIX_ZERO, MATRIX_FIRST_LOW, MATRIX_SECOND_LOW };
-		for (auto side : candidates)
-		{
-			auto bit = 1 << (side - MATRIX_ZERO);
-			if (!(state.brute_force_mask & bit))
-			{
-				state.brute_force_mask |= bit;
-				record->resolver_side = side;
-				record->resolver_type = RESOLVER_BRUTE_FORCE;
-				return;
-			}
-		}
-		state.brute_force_mask = 0;
+		auto candidate = (ctx->abs_missed[record->i] - 1) % ARRAYSIZE(candidates);
+		state.brute_force_mask = 1 << (candidates[candidate] - MATRIX_ZERO);
+		record->resolver_side = candidates[candidate];
+		record->resolver_type = RESOLVER_BRUTE_FORCE;
+		return;
 	}
 }

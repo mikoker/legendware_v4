@@ -276,6 +276,13 @@ void Events::FireGameEvent(IGameEvent* event)
 		auto user_id = engine->GetPlayerForUserID(user);
 
 		esp->reset_animation(user_id);
+		if (user_id > 0 && user_id < 65)
+		{
+			ctx->abs_missed[user_id] = 0;
+			memset(ctx->missed[user_id], 0, sizeof(ctx->missed[user_id]));
+			animations->player_data[user_id].reset();
+		}
+
 		std::string weapon_name = event->GetString(crypt_str("weapon"));
 
 		if (attacker_id == engine->GetLocalPlayer() && user_id != engine->GetLocalPlayer() )
