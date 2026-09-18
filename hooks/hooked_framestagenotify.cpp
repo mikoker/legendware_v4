@@ -369,7 +369,11 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 					}
 					else if (!current_shot->local_death && !current_shot->enemy_death)
 					{
-						if (current_shot->impact_hit && !current_shot->shot_info.safe && current_shot->data.resolver_type != RESOLVER_NONE)
+						auto fallback_head_miss = current_shot->expected_impacts == 1 && current_shot->impacts && !current_shot->occlusion &&
+							current_shot->hitbox == HITBOX_HEAD && current_shot->data.resolver_type == RESOLVER_NONE &&
+							current_shot->data.resolver_side == MATRIX_MAIN && current_shot->shot_info.hitchance >= 80;
+
+						if (!current_shot->shot_info.safe && ((current_shot->impact_hit && current_shot->data.resolver_type != RESOLVER_NONE) || fallback_head_miss))
 						{
 							if (current_shot->index > 0 && current_shot->index < 65)
 								ctx->abs_missed[current_shot->index] = min(ctx->abs_missed[current_shot->index] + 1, 5);
@@ -387,6 +391,9 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 								{
 									additional.insert(additional.begin(), crypt_str("SP"));
 								}
+
+								if (fallback_head_miss)
+									additional.insert(additional.begin(), crypt_str("Fallback"));
 
 								if (!additional.empty())
 								{
