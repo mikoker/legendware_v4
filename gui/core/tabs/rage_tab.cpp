@@ -13,7 +13,6 @@ namespace core::tabs::rage
 		imgui_ex::checkbox(crypt_str("Automatic fire"), &config->rage.automatic_fire);
 		imgui_ex::checkbox(crypt_str("Automatic wall"), &config->rage.automatic_wall);
 		imgui_ex::slider_int(crypt_str("Field of view"), &config->rage.field_of_view, 1, 180);
-		imgui_ex::checkbox(crypt_str("Multithreading"), &ctx->mt_point_scan);
 	}
 
 	void second_tab()

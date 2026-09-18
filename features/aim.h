@@ -232,6 +232,8 @@ class Aim
 
 	vector <AnimationData> backup;
 	vector <PreparedTarget> targets;
+	Shot pending_shot;
+	bool has_pending_shot = false;
 
 	
 
@@ -249,6 +251,7 @@ class Aim
 	virtual Vector get_spread(int seed);
 
 	virtual void extrapolate(crypt_ptr <Player> player, crypt_ptr <AnimationData> extrapolated_data, crypt_ptr <AnimationData> last_data, crypt_ptr <AnimationData> previous_data);
+	bool is_aggressive_safe(int hitbox_index, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, const Vector& point);
 public:
 	bool stop = false;
 	bool early_stop = false;
@@ -269,6 +272,7 @@ public:
 	virtual bool is_valid_head_point(crypt_ptr <Player> player, crypt_ptr <AnimationData> data, int matrix, const Vector& point);
 	virtual bool hitbox_intersection(int hitbox_index, int matrix, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, const Vector& end);
 	virtual bool hitbox_equal(int first, int second);
+	virtual void commit_shot(crypt_ptr <CUserCmd> cmd);
 
 	virtual float get_point_accuracy(const Vector& angle, int matrix, int hitbox_index, float spread, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, bool debug  =false);
 	virtual bool is_hit_chanced(float hit_chance, const Vector& angle, int matrix, int hitbox_index, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, bool check_damage = false, int damage = 1);

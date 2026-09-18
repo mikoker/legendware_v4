@@ -191,6 +191,9 @@ void __stdcall hooked_createmove(int sequence_number, float input_sample_frameti
 
 	exploits->run(cmd);
 
+	if (config->rage.enable)
+		aim->commit_shot(cmd);
+
 	if (exploits->charging)
 		*ctx->send_packet.get() = true;
 

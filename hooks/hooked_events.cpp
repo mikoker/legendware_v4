@@ -94,7 +94,7 @@ void Events::FireGameEvent(IGameEvent* event)
 			{
 				auto player = crypt_ptr <Player>((Player*)entitylist->GetClientEntity(current_shot->data.i));
 
-				if (player->valid())
+				if (player && player->valid())
 				{
 					auto backup_data = AnimationData(player);
 					current_shot->data.apply();
@@ -105,7 +105,7 @@ void Events::FireGameEvent(IGameEvent* event)
 					ray.Init(current_shot->shoot_position, position);
 					enginetrace->ClipRayToEntity(ray, MASK_SHOT_HULL | CONTENTS_HITBOX, player.get(), &trace);
 
-					if (trace.hit_entity == player.get() && trace.hitbox == current_shot->hitbox)
+					if (trace.hit_entity == player.get() && aim->hitbox_equal(trace.hitbox, current_shot->hitbox))
 						current_shot->impact_hit = true;
 
 					if (!current_shot->impact_hit)
@@ -198,15 +198,15 @@ void Events::FireGameEvent(IGameEvent* event)
 
 			crypt_ptr <Shot> current_shot;
 
-			for (auto shot = shots.rbegin(); shot != shots.rend(); ++shot)
+			for (auto& shot : shots)
 			{
-				if (!shot->start || shot->end)
+				if (!shot.start || shot.end)
 					continue;
 
-				if (shot->index != userid_id || !shot->impacts)
+				if (shot.index != userid_id || !shot.impacts)
 					continue;
 
-				current_shot = &*shot;
+				current_shot = &shot;
 				break;
 			}
 

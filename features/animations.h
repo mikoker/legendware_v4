@@ -20,6 +20,16 @@ enum ROTATE_MODE
 	MATRIX_MAX
 };
 
+enum ResolverEvidence
+{
+	RESOLVER_NONE,
+	RESOLVER_MOVING_LAYER,
+	RESOLVER_LBY_UPDATE,
+	RESOLVER_JITTER,
+	RESOLVER_LAST_MOVE,
+	RESOLVER_BRUTE_FORCE
+};
+
 enum
 {
 	LAYERS_ORIGINAL,
@@ -92,8 +102,8 @@ public:
 		server_tick = 0;
 		flags = 0;
 		bone_count = 0;
-		resolver_type = 0;
-		resolver_side = 0;
+		resolver_type = RESOLVER_NONE;
+		resolver_side = MATRIX_MAIN;
 		velocity_state = 0;
 		m_last_storred_tick = 0;
 
@@ -123,8 +133,8 @@ public:
 
 		choke = 0;
 		server_tick = 0;
-		resolver_type = 0;
-		resolver_side = 0;
+		resolver_type = RESOLVER_NONE;
+		resolver_side = MATRIX_MAIN;
 		velocity_state = 0;
 		m_last_storred_tick = 0;
 
@@ -145,7 +155,8 @@ public:
 			memcpy(layers[LAYERS_ORIGINAL], player->get_animation_layer().get(), player->get_animation_layers_count() * sizeof(AnimationLayer));
 		}
 
-		invalid = false;
+		if (store_extra)
+			invalid = false;
 		backup = store_extra;
 		immune = player->m_bGunGameImmunity();
 		dormant = player->IsDormant();
@@ -207,7 +218,7 @@ public:
 		player->m_iMostRecentModelBoneCounter() = player->m_iModelBoneCounter();
 	}
 
-	virtual bool valid(bool extra_checks = true, float limit = 0.2f, bool visual = false)
+	virtual bool valid(bool extra_checks = true, float limit = 0.2f, bool visual = false, int validation_tickbase = -1)
 	{
 		auto player = crypt_ptr <Player> ((Player*)entitylist->GetClientEntity(i));
 
@@ -259,7 +270,10 @@ public:
 		if (visual)
 			delta_time = correct - (globals->curtime - simulation_time);
 		else
-			delta_time = correct - (TICKS_TO_TIME(ctx->tickbase) - simulation_time);
+		{
+			auto tickbase = validation_tickbase >= 0 ? validation_tickbase : ctx->tickbase;
+			delta_time = correct - (TICKS_TO_TIME(tickbase) - simulation_time);
+		}
 
 		if (abs(delta_time) >= limit)
 			return false;
@@ -269,7 +283,7 @@ public:
 		if (!visual && ctx->fake_ducking)
 			extra_choke = 14 - clientstate->m_nChokedCommands;
 
-		auto server_tickcount = globals->tickcount + latency + extra_choke;
+		auto server_tickcount = globals->tickcount + TIME_TO_TICKS(latency) + extra_choke;
 		auto dead_time = (int)(float)((float)((int)((float)((float)server_tickcount * globals->intervalpertick) - 0.2f) / globals->intervalpertick) + 0.5f);
 
 		if (TIME_TO_TICKS(simulation_time + ctx->interpolation) < dead_time)
@@ -288,6 +302,23 @@ public:
 	float last_loop_cycle;
 	float last_loop_rate;
 	float goal_feet_yaw;
+	float last_move_yaw;
+	float last_move_time;
+	float last_lby;
+	float last_lby_update_time;
+	float last_eye_yaw;
+	Vector last_move_origin;
+	AnimationState animation_state;
+	Player* animation_player;
+	float animation_spawn_time;
+	bool animation_initialized;
+	bool has_last_move;
+	bool has_lby;
+	bool has_eye_yaw;
+	bool jittering;
+	int jitter_ticks;
+	int resolved_side;
+	int brute_force_mask;
 
 	PlayerData()
 	{
@@ -302,6 +333,23 @@ public:
 		last_loop_cycle = 0.0f;
 		last_loop_rate = 0.0f;
 		goal_feet_yaw = 0.0f;
+		last_move_yaw = 0.0f;
+		last_move_time = 0.0f;
+		last_lby = 0.0f;
+		last_lby_update_time = 0.0f;
+		last_eye_yaw = 0.0f;
+		last_move_origin.Zero();
+		animation_state = AnimationState();
+		animation_player = nullptr;
+		animation_spawn_time = 0.0f;
+		animation_initialized = false;
+		has_last_move = false;
+		has_lby = false;
+		has_eye_yaw = false;
+		jittering = false;
+		jitter_ticks = 0;
+		resolved_side = MATRIX_MAIN;
+		brute_force_mask = 0;
 	}
 };
 

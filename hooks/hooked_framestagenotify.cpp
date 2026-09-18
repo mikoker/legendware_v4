@@ -357,12 +357,21 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 					std::vector<std::string> additional;
 
 					if (current_shot->hurt)
+					{
 						current_shot->shot_info.result = crypt_str("Hit");
+
+						if (current_shot->index > 0 && current_shot->index < 65)
+						{
+							ctx->abs_missed[current_shot->index] = 0;
+							animations->player_data[current_shot->index].brute_force_mask = 0;
+						}
+					}
 					else if (!current_shot->local_death && !current_shot->enemy_death)
 					{
-						if (current_shot->impact_hit)
+						if (current_shot->impact_hit && !current_shot->shot_info.safe && current_shot->data.resolver_type != RESOLVER_NONE)
 						{
-							//resolver[current_shot->index]->process_missed_shot(&current_shot->data);
+							if (current_shot->index > 0 && current_shot->index < 65)
+								ctx->abs_missed[current_shot->index] = min(ctx->abs_missed[current_shot->index] + 1, 5);
 
 							if (config->misc.logs[LOGS_MISSES])
 							{

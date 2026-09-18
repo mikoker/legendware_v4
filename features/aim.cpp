@@ -26,6 +26,7 @@ void Aim::run(crypt_ptr <CUserCmd> cmd) //-V813
 	backup.clear();
 	targets.clear();
 	final_target.reset();
+	has_pending_shot = false;
 
 	if (!ctx->weapon()->can_fire())
 		return;
@@ -540,9 +541,6 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	{
 		auto original_tickbase = ctx->tickbase;
 
-		if (exploits->hide_shots || exploits->double_tap)
-			original_tickbase += exploits->target_tickbase_shift;
-
 		auto correct = clamp(TICKS_TO_TIME(engine_prediction->latency) + ctx->interpolation, 0.0f, convars_manager->convars[CONVAR_SV_MAXUNLAG]->GetFloat());
 		auto delta_time = correct - (TICKS_TO_TIME(original_tickbase) - final_target.data->simulation_time);
 
@@ -635,7 +633,7 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 
 	Shot shot;
 
-	shot.safe = final_target.point.safe >= 5;
+	shot.safe = final_target.point.safe;
 	shot.index = final_target.data->i;
 	shot.command_number = cmd->command_number;
 	shot.tickcount = globals->tickcount;
@@ -648,17 +646,34 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	shot.data = *final_target.data.get();
 
 	shot.shot_info.client_hitbox = get_hitbox_name(final_target.hitbox);
-	shot.shot_info.safe = final_target.point.safe >= 3;
+	shot.shot_info.safe = final_target.point.safe;
 	shot.shot_info.target_index = final_target.data->i;
 	shot.shot_info.client_damage = final_target.damage;
 	shot.shot_info.hitchance = hit_chance;
 	shot.shot_info.backtrack_ticks = backtrack_ticks;
 	shot.shot_info.aim_point = final_target.point.point;
 
-	shots.emplace_back(shot);
-
-	ctx->shots_data.emplace_front(ShotData(cmd->command_number, ctx->local()->m_flVelocityModifier(), globals->curtime));
+	pending_shot = shot;
+	has_pending_shot = true;
 	ctx->automatic_revolver = false;
+}
+
+void Aim::commit_shot(crypt_ptr <CUserCmd> cmd)
+{
+	if (!has_pending_shot)
+		return;
+
+	if (!(cmd->buttons & IN_ATTACK) || !ctx->weapon()->executed(cmd))
+	{
+		has_pending_shot = false;
+		return;
+	}
+
+	pending_shot.command_number = cmd->command_number;
+	pending_shot.tickcount = globals->tickcount;
+	shots.emplace_back(pending_shot);
+	ctx->shots_data.emplace_front(ShotData(cmd->command_number, ctx->local()->m_flVelocityModifier(), globals->curtime));
+	has_pending_shot = false;
 }
 
 void Aim::automatic_stop(crypt_ptr <CUserCmd> cmd)
@@ -853,6 +868,13 @@ bool Aim::hitbox_equal(int first, int second)
 	return get_hitgroup(first) == get_hitgroup(second);
 }
 
+bool Aim::is_aggressive_safe(int hitbox_index, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, const Vector& point)
+{
+	return hitbox_intersection(hitbox_index, MATRIX_ZERO, player, data, point) &&
+		hitbox_intersection(hitbox_index, MATRIX_FIRST, player, data, point) &&
+		hitbox_intersection(hitbox_index, MATRIX_SECOND, player, data, point);
+}
+
 #pragma optimize("", off)
 bool Aim::clip_ray_to_hitbox(const Ray_t& ray, crypt_ptr <mstudiobbox_t> hitbox, matrix3x4_t& matrix, CGameTrace& trace)
 {
@@ -965,7 +987,6 @@ void Aim::scan_hitboxes(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 
 	auto body_aim = true;
 	auto best_body_damage = 0;
-	auto found_safe = 0;
 
 	Vector view_angle;
 	engine->GetViewAngles(view_angle);
@@ -1011,19 +1032,13 @@ void Aim::scan_hitboxes(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 					continue;
 			}
 
-			for (auto matrix = (int)MATRIX_ZERO; matrix < MATRIX_MAX; ++matrix)
-				if (hitbox_intersection(hitbox.hitbox, matrix, player, data, point.point))
-					++point.safe;
+			point.safe = is_aggressive_safe(hitbox.hitbox, player, data, point.point);
 
-			if (point.safe < 5)
-			{
-				if (!point.safe)
-					continue;
-				else if (hitbox.force_safe || config->player_list.player_settings[data->i].force_safe_points || config->rage.weapon[ctx->weapon_config].force_safe_points_if_lethal && player->m_iHealth() <= ctx->weapon_data()->damage) //-V648
-					continue;
-				else if (hitbox.prefer_safe && point.safe < found_safe)
-					continue;
-			}
+			const auto force_safe = hitbox.force_safe || config->player_list.player_settings[data->i].force_safe_points ||
+				(config->rage.weapon[ctx->weapon_config].force_safe_points_if_lethal && player->m_iHealth() <= ctx->weapon_data()->damage);
+
+			if (force_safe && !point.safe)
+				continue;
 
 			point.penetration_info = penetration->run(ctx->shoot_position, point.point, player, config->rage.automatic_wall);
 
@@ -1075,11 +1090,14 @@ void Aim::scan_hitboxes(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 			if (point.penetration_info.penetration_count < final_target.penetration_count)
 				continue;
 
-			if (point.penetration_info.damage > final_target.damage)
-			{
-				if (point.safe >= 2)
-					found_safe = point.safe;
+			auto same_candidate_set = final_target.player.get() == player.get() && final_target.data.get() == data.get() && final_target.hitbox == hitbox.hitbox;
+			auto prefer_safe = hitbox.prefer_safe && same_candidate_set && point.safe && !final_target.point.safe;
 
+			if (hitbox.prefer_safe && same_candidate_set && !point.safe && final_target.point.safe)
+				continue;
+
+			if (point.penetration_info.damage > final_target.damage || prefer_safe)
+			{
 				final_target.visible = point.penetration_info.visible;
 				final_target.damage = point.penetration_info.damage;
 				final_target.hitbox = hitbox.hitbox;
