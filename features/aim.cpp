@@ -215,24 +215,8 @@ void Aim::prepare()
 	additional_index += 3;
 }
 
-struct AimPlayer
-{
-	crypt_ptr <AnimationData> data;
-	crypt_ptr <Player> player;
-	vector<Hitbox> hitboxes;
-};
-
-inline void thread_aim(crypt_ptr<Player> player, crypt_ptr <AnimationData> data, vector<Hitbox>& hitboxes)
-{
-	aim->scan_hitboxes_new(player, data, hitboxes);
-}
-
 void Aim::scan()
 {
-	vector<AimPlayer> aim_players{};
-	aim_players.reserve(250);
-
-	auto valid_count = 0;
 	for (auto& target : targets)
 	{
 		auto found_backup = false;
@@ -395,110 +379,11 @@ void Aim::scan()
 		{
 			data->apply();
 
-			if (optimized_scan || !ctx->mt_point_scan)
-			{
-				scan_hitboxes(target.player, data);
+			scan_hitboxes(target.player, data);
 
-				if (early_stop)
-					return;
-			}
-			else
-			{
-				auto& aim_player = aim_players.emplace_back();
-				aim_player.data = data;
-				aim_player.player = target.player;
-
-				data->apply();
-
-				++valid_count;
-				thread_pool->add_task(thread_aim, target.player, data, std::ref(aim_player.hitboxes));
-			}
-		}
-	}
-
-	if (!optimized_scan)
-	{
-		if (ctx->mt_point_scan)
-		{
-			if (valid_count < 1)
+			if (early_stop)
 				return;
-
-			thread_pool->wait_all();
-
-			for (auto& aim : aim_players)
-			{
-				auto hit_chance = exploits->double_tap ? (float)config->rage.weapon[ctx->weapon_config].double_tap_hit_chance : (float)config->rage.weapon[ctx->weapon_config].hit_chance;
-				auto minimum_damage = config->rage.weapon[ctx->weapon_config].minimum_damage;
-
-				if (minimum_damage > 100)
-					minimum_damage = clamp(minimum_damage, 1, aim.player->m_iHealth() + minimum_damage - 100);
-				else
-					minimum_damage = clamp(minimum_damage, 1, aim.player->m_iHealth());
-
-				if (config->rage.force_damage_key.state)
-				{
-					auto force_damage = config->rage.weapon[ctx->weapon_config].force_damage_value;
-
-					if (force_damage > 100)
-						minimum_damage = clamp(force_damage, 1, aim.player->m_iHealth() + force_damage - 100);
-					else
-						minimum_damage = clamp(force_damage, 1, aim.player->m_iHealth());
-				}
-
-				aim.data->apply();
-
-				for (auto& hitbox : aim.hitboxes)
-				{
-					if (hitbox.points.empty())
-						continue;
-
-					for (auto& point : hitbox.points)
-					{
-						auto angle = math::calculate_angle(ctx->shoot_position, point.point);
-
-						if (hitbox.hitbox == HITBOX_HEAD)
-						{
-							auto valid_head_point = is_valid_head_point(aim.player, aim.data, MATRIX_MAIN, point.point);
-							if (!valid_head_point)
-								continue;
-						}
-
-						if (point.penetration_info.damage < minimum_damage)
-							continue;
-
-						if (point.penetration_info.penetration_count < final_target.penetration_count)
-							continue;
-
-						if (!hitbox_equal(point.penetration_info.hitbox, hitbox.hitbox))
-							continue;
-
-						stop = true;
-
-						if (!skip_automatic_scope)
-						{
-							if (point.low_accuracy >= (hit_chance * 0.01f))
-								skip_automatic_scope = true;
-						}
-
-						if (point.accuracy < (hit_chance * 0.01f) && !jump_scout)
-							continue;
-
-						if (point.penetration_info.damage > final_target.damage)
-						{
-							final_target.visible = point.penetration_info.visible;
-							final_target.damage = point.penetration_info.damage;
-							final_target.hitbox = hitbox.hitbox;
-							final_target.hitgroup = point.penetration_info.hitgroup;
-							final_target.penetration_count = point.penetration_info.penetration_count;
-							final_target.point = point;
-							final_target.player = aim.player;
-							final_target.data = aim.data;
-						}
-					}
-				}
-			}
 		}
-
 	}
 }
 
