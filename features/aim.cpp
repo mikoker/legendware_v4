@@ -333,11 +333,11 @@ void Aim::scan()
 
 					if (predicted_tick > 0 && predicted_tick < 20)
 					{
-						auto max_backtrack_time = ceil(((delta_time - 0.2f) / globals->intervalpertick + 0.5f) / (float)last_data->choke);
+						auto max_prediction_ticks = (int)ceil(((delta_time - 0.2f) / globals->intervalpertick + 0.5f) / (float)last_data->choke);
 						auto prediction_ticks = predicted_tick;
 
-						if (max_backtrack_time > 0.0f && predicted_tick >= TIME_TO_TICKS(max_backtrack_time))
-							prediction_ticks = TIME_TO_TICKS(max_backtrack_time);
+						if (max_prediction_ticks > 0 && predicted_tick >= max_prediction_ticks)
+							prediction_ticks = max_prediction_ticks;
 
 						if (prediction_ticks > 0)
 						{
