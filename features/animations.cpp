@@ -38,16 +38,14 @@ void Animations::run()
 		{
 			animation_data[i].clear();
 			player_data[i].reset();
-			ctx->abs_missed[i] = 0;
-			memset(ctx->missed[i], 0, sizeof(ctx->missed[i]));
+			resolver->reset(i);
 			continue;
 		}
 		else if (player->IsDormant())
 		{
 			animation_data[i].clear();
 			player_data[i].reset();
-			ctx->abs_missed[i] = 0;
-			memset(ctx->missed[i], 0, sizeof(ctx->missed[i]));
+			resolver->reset(i);
 			continue;
 		}
 
@@ -85,6 +83,7 @@ void Animations::run()
 			for (auto& record : animation_data[i])
 				record.invalid = true;
 			player_data[i].reset();
+			resolver->reset(i);
 		}
 
 		player->m_bClientSideAnimation() = true;
@@ -176,6 +175,16 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 	const auto backup_flags = player->m_fFlags();
 	const auto backup_strafing = player->m_bStrafing();
 	const auto backup_walking = player->m_bIsWalking();
+	data->network.valid = true;
+	data->network.flags = backup_flags;
+	data->network.simulation_time = player->m_flSimulationTime();
+	data->network.old_simulation_time = player->m_flOldSimulationTime();
+	data->network.duck_amount = backup_duck_amount;
+	data->network.lower_body_yaw = backup_lower_body_yaw_target;
+	data->network.angles = player->m_angEyeAngles();
+	data->network.abs_angles = player->GetAbsAngles();
+	data->network.velocity = player->m_vecVelocity();
+	data->network.origin = player->m_vecOrigin();
 
 	auto backup_curtime = globals->curtime; //-V807
 	auto backup_frametime = globals->frametime;
@@ -635,7 +644,6 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 		AnimationLayer backup_layers[13];
 
 		memcpy(backup_layers, player->get_animation_layer().get(), player->get_animation_layers_count() * sizeof(AnimationLayer));
-		memcpy(player->get_animation_layer().get(), data->layers, player->get_animation_layers_count() * sizeof(AnimationLayer));
 
 		auto success = matrix != MATRIX_VISUAL_INTERPOLATED && player->setup_bones_rebuilded(BONE_USED_BY_HITBOX, data->matrix[matrix]);
 
@@ -662,6 +670,9 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 	player->update_animations();
 
 	data->animation_state = *animation_state.get();
+	memcpy(data->layers[LAYERS_BASELINE], player->get_animation_layer().get(), player->get_animation_layers_count() * sizeof(AnimationLayer));
+	float baseline_pose_parameters[24];
+	memcpy(baseline_pose_parameters, player->m_flPoseParameters(), sizeof(baseline_pose_parameters));
 
 	player_data[data->i].goal_feet_yaw = animation_state->goal_feet_yaw;
 	memcpy(player->get_animation_layer().get(), backup_layers, player->get_animation_layers_count() * sizeof(AnimationLayer));
@@ -672,8 +683,11 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 
 	if (config->rage.enable && valid_team && ctx->local()->valid())
 	{
-		auto desync_delta = clamp(fabsf(animation_state->get_desync_delta()), 0.0f, 60.0f);
+		auto candidate_animation_state = data->animation_state;
+		auto desync_delta = clamp(fabsf(candidate_animation_state.get_desync_delta()), 0.0f, 60.0f);
 
+		*animation_state.get() = candidate_animation_state;
+		memcpy(player->m_flPoseParameters(), baseline_pose_parameters, sizeof(baseline_pose_parameters));
 		animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y);
 		player->update_animations();
 		memcpy(data->layers[LAYERS_ZERO], player->get_animation_layer().get(), player->get_animation_layers_count() * sizeof(AnimationLayer));
@@ -681,7 +695,8 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 		setup_matrix(player, data, MATRIX_ZERO, roll);
 
 		memcpy(player->get_animation_layer().get(), backup_layers, player->get_animation_layers_count() * sizeof(AnimationLayer));
-		memcpy(animation_state.get(), &backup_animation_state, sizeof(AnimationState));
+		*animation_state.get() = candidate_animation_state;
+		memcpy(player->m_flPoseParameters(), baseline_pose_parameters, sizeof(baseline_pose_parameters));
 
 		animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y + desync_delta);
 		player->update_animations();
@@ -690,15 +705,17 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 		setup_matrix(player, data, MATRIX_FIRST, roll);
 
 		memcpy(player->get_animation_layer().get(), backup_layers, player->get_animation_layers_count() * sizeof(AnimationLayer));
-		memcpy(animation_state.get(), &backup_animation_state, sizeof(AnimationState));
+		*animation_state.get() = candidate_animation_state;
+		memcpy(player->m_flPoseParameters(), baseline_pose_parameters, sizeof(baseline_pose_parameters));
 
-		animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y + animation_state->get_desync_delta() * 0.5f);
+		animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y + desync_delta * 0.5f);
 		player->update_animations();
 
 		setup_matrix(player, data, MATRIX_FIRST_LOW, roll);
 
 		memcpy(player->get_animation_layer().get(), backup_layers, player->get_animation_layers_count() * sizeof(AnimationLayer));
-		memcpy(animation_state.get(), &backup_animation_state, sizeof(AnimationState));
+		*animation_state.get() = candidate_animation_state;
+		memcpy(player->m_flPoseParameters(), baseline_pose_parameters, sizeof(baseline_pose_parameters));
 
 		animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y - desync_delta);
 		player->update_animations();
@@ -707,9 +724,10 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 		setup_matrix(player, data, MATRIX_SECOND, roll);
 
 		memcpy(player->get_animation_layer().get(), backup_layers, player->get_animation_layers_count() * sizeof(AnimationLayer));
-		memcpy(animation_state.get(), &backup_animation_state, sizeof(AnimationState));
+		*animation_state.get() = candidate_animation_state;
+		memcpy(player->m_flPoseParameters(), baseline_pose_parameters, sizeof(baseline_pose_parameters));
 
-		animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y - animation_state->get_desync_delta() * 0.5f);
+		animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y - desync_delta * 0.5f);
 		player->update_animations();
 
 		setup_matrix(player, data, MATRIX_SECOND_LOW, roll);
@@ -724,30 +742,38 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 	data->origin = player->m_vecOrigin();
 	data->angles = player->m_angEyeAngles();
 	resolver_yaw(player, data, previous_data);
+	memcpy(player->get_animation_layer().get(), data->layers[LAYERS_BASELINE], player->get_animation_layers_count() * sizeof(AnimationLayer));
+	memcpy(player->m_flPoseParameters(), baseline_pose_parameters, sizeof(baseline_pose_parameters));
+	setup_matrix(player, data, MATRIX_BASELINE, roll);
+	*animation_state.get() = data->animation_state;
+	memcpy(player->get_animation_layer().get(), backup_layers, player->get_animation_layers_count() * sizeof(AnimationLayer));
 
-	if (!config->player_list.player_settings[data->i].force_body_yaw)
+	auto force_body_yaw = config->player_list.player_settings[data->i].force_body_yaw;
+	auto force_pitch = config->player_list.player_settings[data->i].force_pitch;
+	if (!force_body_yaw)
 	{
-		auto resolver_delta = clamp(fabsf(animation_state->get_desync_delta()), 0.0f, 60.0f);
-
-		switch (data->resolver_side)
-		{
-		case MATRIX_ZERO: animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y); break;
-		case MATRIX_FIRST: animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y + resolver_delta); break;
-		case MATRIX_FIRST_LOW: animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y + resolver_delta * 0.5f); break;
-		case MATRIX_SECOND: animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y - resolver_delta); break;
-		case MATRIX_SECOND_LOW: animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y - resolver_delta * 0.5f); break;
-		default: break; // MATRIX_MAIN preserves the reconstructed AnimState yaw.
-		}
+		if (data->resolver.selected >= 0 && data->resolver.selected < data->resolver.count)
+			animation_state->goal_feet_yaw = data->resolver.candidates[data->resolver.selected].yaw;
 	}
 	else
 		animation_state->goal_feet_yaw = math::normalize_yaw(player->m_angEyeAngles().y + (float)config->player_list.player_settings[data->i].body_yaw);
 
-	if (config->player_list.player_settings[data->i].force_pitch)
+	if (force_pitch)
 		player->m_angEyeAngles().x = (float)config->player_list.player_settings[data->i].pitch;
 
-	player->update_animations();
+	auto baseline_selected = !force_body_yaw && !force_pitch && data->resolver.selected_matrix == MATRIX_BASELINE;
+	if (baseline_selected)
+	{
+		memcpy(data->matrix[MATRIX_MAIN], data->matrix[MATRIX_BASELINE], MAXSTUDIOBONES * sizeof(matrix3x4_t));
+		memcpy(player->get_animation_layer().get(), data->layers[LAYERS_BASELINE], player->get_animation_layers_count() * sizeof(AnimationLayer));
+		memcpy(player->m_flPoseParameters(), baseline_pose_parameters, sizeof(baseline_pose_parameters));
+	}
+	else
+	{
+		player->update_animations();
+		setup_matrix(player, data, MATRIX_MAIN, roll);
+	}
 
-	setup_matrix(player, data, MATRIX_MAIN, roll);
 	setup_matrix(player, data, MATRIX_VISUAL_INTERPOLATED, roll);
 
 	memcpy(data->matrix[MATRIX_VISUAL], data->matrix[MATRIX_VISUAL_INTERPOLATED], MAXSTUDIOBONES * sizeof(matrix3x4_t));
@@ -776,142 +802,6 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 
 void Animations::resolver_yaw(crypt_ptr <Player> player, crypt_ptr <AnimationData> record, crypt_ptr <AnimationData> previous)
 {
-	record->resolver_type = RESOLVER_NONE;
-	record->resolver_side = MATRIX_MAIN;
-
-	if (!config->rage.enable || !ctx->local()->valid() || record->exploit ||
-		(player->m_iTeamNum() == ctx->local()->m_iTeamNum() && !ctx->friendly_fire))
-		return;
-
-	auto& state = player_data[record->i];
-	auto eye_yaw = math::normalize_yaw(record->angles.y);
 	auto max_desync = clamp(fabsf(record->animation_state.get_desync_delta()), 0.0f, 60.0f);
-	auto on_ground = record->flags & FL_ONGROUND;
-	auto moving = on_ground && record->velocity.Length2D() > 0.1f && record->server_layers[6].m_flPlaybackRate > 0.0f;
-	auto lby_updated = state.has_lby && fabsf(math::angle_diff(record->lower_body_yaw_target, state.last_lby)) > 1.0f;
-
-	auto side_for_yaw = [&](float yaw)
-	{
-		const std::pair<int, float> candidates[] =
-		{
-			{ MATRIX_ZERO, eye_yaw },
-			{ MATRIX_FIRST, math::normalize_yaw(eye_yaw + max_desync) },
-			{ MATRIX_SECOND, math::normalize_yaw(eye_yaw - max_desync) }
-		};
-
-		auto side = (int)MATRIX_MAIN;
-		auto best_delta = FLT_MAX;
-
-		for (const auto& candidate : candidates)
-		{
-			auto delta = fabsf(math::angle_diff(yaw, candidate.second));
-			if (delta < best_delta)
-			{
-				best_delta = delta;
-				side = candidate.first;
-			}
-		}
-
-		return side;
-	};
-
-	if (!state.has_lby || lby_updated)
-	{
-		state.last_lby = record->lower_body_yaw_target;
-		state.last_lby_update_time = record->simulation_time;
-		state.has_lby = true;
-	}
-
-	if (moving)
-	{
-		state.last_move_yaw = record->lower_body_yaw_target;
-		state.last_move_time = record->simulation_time;
-		state.last_move_origin = record->origin;
-		state.has_last_move = true;
-		state.brute_force_mask = 0;
-		ctx->abs_missed[record->i] = 0;
-
-		if (previous)
-		{
-			const struct { int layer; int matrix; } candidates[] =
-			{
-				{ LAYERS_ZERO, MATRIX_ZERO },
-				{ LAYERS_FIRST, MATRIX_FIRST },
-				{ LAYERS_SECOND, MATRIX_SECOND }
-			};
-
-			auto best_score = FLT_MAX;
-			auto second_score = FLT_MAX;
-			auto side = (int)MATRIX_MAIN;
-
-			for (const auto& candidate : candidates)
-			{
-				auto& layer = record->layers[candidate.layer][6];
-				if (layer.m_nSequence != record->server_layers[6].m_nSequence)
-					continue;
-
-				auto cycle_delta = fabsf(layer.m_flCycle - record->server_layers[6].m_flCycle);
-				cycle_delta = min(cycle_delta, 1.0f - cycle_delta);
-				auto score = fabsf(layer.m_flPlaybackRate - record->server_layers[6].m_flPlaybackRate) * 2.0f +
-					fabsf(layer.m_flWeight - record->server_layers[6].m_flWeight) + cycle_delta;
-
-				if (score < best_score)
-				{
-					second_score = best_score;
-					best_score = score;
-					side = candidate.matrix;
-				}
-				else if (score < second_score)
-					second_score = score;
-			}
-
-			if (side != MATRIX_MAIN && (second_score == FLT_MAX || second_score - best_score > 0.01f))
-			{
-				record->resolver_side = side;
-				record->resolver_type = RESOLVER_MOVING_LAYER;
-				state.resolved_side = side;
-				return;
-			}
-		}
-	}
-
-	if (on_ground && lby_updated && fabsf(math::angle_diff(record->lower_body_yaw_target, eye_yaw)) >= 20.0f)
-	{
-		record->resolver_side = side_for_yaw(record->lower_body_yaw_target);
-		record->resolver_type = RESOLVER_LBY_UPDATE;
-		state.resolved_side = record->resolver_side;
-		state.brute_force_mask = 0;
-		return;
-	}
-
-	if (on_ground && state.has_last_move && record->simulation_time - state.last_move_time <= 1.0f &&
-		(record->origin - state.last_move_origin).Length2D() <= 64.0f)
-	{
-		record->resolver_side = side_for_yaw(state.last_move_yaw);
-		record->resolver_type = RESOLVER_LAST_MOVE;
-		return;
-	}
-
-	auto eye_delta = state.has_eye_yaw ? math::angle_diff(eye_yaw, state.last_eye_yaw) : 0.0f;
-	state.jitter_ticks = fabsf(eye_delta) >= 35.0f ? min(state.jitter_ticks + 1, 4) : 0;
-	state.jittering = state.jitter_ticks >= 2;
-	state.last_eye_yaw = eye_yaw;
-	state.has_eye_yaw = true;
-
-	if (on_ground && state.jittering)
-	{
-		record->resolver_side = eye_delta > 0.0f ? MATRIX_SECOND : MATRIX_FIRST;
-		record->resolver_type = RESOLVER_JITTER;
-		return;
-	}
-
-	if (on_ground && ctx->abs_missed[record->i] > 0)
-	{
-		const int candidates[] = { MATRIX_FIRST, MATRIX_SECOND, MATRIX_ZERO, MATRIX_FIRST_LOW, MATRIX_SECOND_LOW };
-		auto candidate = (ctx->abs_missed[record->i] - 1) % ARRAYSIZE(candidates);
-		state.brute_force_mask = 1 << (candidates[candidate] - MATRIX_ZERO);
-		record->resolver_side = candidates[candidate];
-		record->resolver_type = RESOLVER_BRUTE_FORCE;
-		return;
-	}
+	resolver->resolve(player.get(), *record.get(), previous.get(), max_desync);
 }

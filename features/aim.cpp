@@ -616,6 +616,8 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 			return crypt_str("second");
 		case MATRIX_SECOND_LOW:
 			return crypt_str("second_low");
+		case MATRIX_BASELINE:
+			return crypt_str("baseline");
 		}
 		return crypt_str("unknown");
 	};
@@ -653,6 +655,9 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	log += crypt_str(", penetration count: ") + to_string(final_target.penetration_count);
 	log += crypt_str(", resolver evidence: ") + get_resolver_evidence(final_target.data->resolver_type);
 	log += crypt_str(", resolver side: ") + get_resolver_side(final_target.data->resolver_side);
+	log += crypt_str(", confidence: ") + to_string(final_target.data->resolver.confidence);
+	for (auto i = 0; i < final_target.data->resolver.count; ++i)
+		log += std::format(" [{}:{:.1f}/{:.2f}]", i, final_target.data->resolver.candidates[i].yaw, final_target.data->resolver.candidates[i].score);
 
 	logs->add(log, Color::LightBlue, crypt_str("[ SHOT ] "));
 #endif
@@ -660,12 +665,17 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	Shot shot;
 
 	shot.safe = final_target.point.safe;
+	shot.resolver_eligible = !shot.safe && !final_target.data->invalid && !final_target.data->exploit &&
+		!final_target.data->extrapolated && final_target.data->network.valid &&
+		!config->player_list.player_settings[final_target.data->i].force_body_yaw &&
+		!config->player_list.player_settings[final_target.data->i].force_pitch && final_target.data->resolver.selected >= 0;
 	shot.index = final_target.data->i;
 	shot.command_number = cmd->command_number;
 	shot.tickcount = globals->tickcount;
 	shot.hitbox = final_target.hitbox;
 	shot.hitgroup = final_target.hitgroup;
 	shot.expected_impacts = max(ctx->weapon_data()->bullets, 1);
+	shot.choked_commands = clientstate->m_nChokedCommands;
 	shot.distance = ctx->shoot_position.DistTo(final_target.point.point);
 	shot.shoot_position = ctx->shoot_position;
 	shot.player = final_target.player;
@@ -684,8 +694,25 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	ctx->automatic_revolver = false;
 }
 
+void Aim::mark_shots_sent(crypt_ptr <CUserCmd> cmd)
+{
+	if (!*ctx->send_packet.get())
+		return;
+
+	for (auto& shot : shots)
+	{
+		if (shot.state != SHOT_SENT || shot.outgoing)
+			continue;
+
+		shot.outgoing = true;
+		shot.packet_command_number = cmd->command_number;
+	}
+}
+
 void Aim::commit_shot(crypt_ptr <CUserCmd> cmd)
 {
+	mark_shots_sent(cmd);
+
 	if (!has_pending_shot)
 		return;
 
@@ -697,6 +724,10 @@ void Aim::commit_shot(crypt_ptr <CUserCmd> cmd)
 
 	pending_shot.command_number = cmd->command_number;
 	pending_shot.tickcount = globals->tickcount;
+	pending_shot.outgoing = *ctx->send_packet.get();
+	pending_shot.packet_command_number = pending_shot.outgoing ? cmd->command_number : 0;
+	pending_shot.choked_commands = clientstate->m_nChokedCommands;
+	pending_shot.state = SHOT_SENT;
 	shots.emplace_back(pending_shot);
 	ctx->shots_data.emplace_front(ShotData(cmd->command_number, ctx->local()->m_flVelocityModifier(), globals->curtime));
 	has_pending_shot = false;
@@ -896,9 +927,14 @@ bool Aim::hitbox_equal(int first, int second)
 
 bool Aim::is_aggressive_safe(int hitbox_index, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, const Vector& point)
 {
-	return hitbox_intersection(hitbox_index, MATRIX_ZERO, player, data, point) &&
-		hitbox_intersection(hitbox_index, MATRIX_FIRST, player, data, point) &&
-		hitbox_intersection(hitbox_index, MATRIX_SECOND, player, data, point);
+	if (data->resolver.count <= 0)
+		return false;
+
+	for (auto i = 0; i < data->resolver.count; ++i)
+		if (!hitbox_intersection(hitbox_index, data->resolver.candidates[i].matrix, player, data, point, 1.0f))
+			return false;
+
+	return true;
 }
 
 #pragma optimize("", off)
@@ -1198,9 +1234,7 @@ void Aim::scan_hitboxes_new(crypt_ptr <Player> player, crypt_ptr <AnimationData>
 			if (field_of_view > (float)config->rage.field_of_view)
 				continue;
 
-			for (auto matrix = (int)MATRIX_ZERO; matrix < MATRIX_MAX; ++matrix)
-				if (hitbox_intersection(hitbox.hitbox, matrix, player, data, point.point))
-					++point.safe;
+			point.safe = is_aggressive_safe(hitbox.hitbox, player, data, point.point);
 
 			point.penetration_info = penetration->run(ctx->shoot_position, point.point, player, config->rage.automatic_wall);
 
@@ -1471,8 +1505,9 @@ Vector Aim::get_spread(int seed)
 	return Vector(c[seed][0] * r1 * ctx->inaccuracy + c[seed][1] * r2 * ctx->spread, s[seed][0] * r1 * ctx->inaccuracy + s[seed][1] * r2 * ctx->spread, 0.0f);
 }
 
-bool Aim::hitbox_intersection(int hitbox_index, int matrix, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, const Vector& end) //-V813
+bool Aim::hitbox_intersection(int hitbox_index, int matrix, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, const Vector& end, float margin, const Vector* start) //-V813
 {
+	const auto& ray_start = start ? *start : ctx->shoot_position;
 	auto hitbox = player->get_hitbox(hitbox_index);
 
 	if (!hitbox)
@@ -1486,14 +1521,14 @@ bool Aim::hitbox_intersection(int hitbox_index, int matrix, crypt_ptr <Player> p
 		Vector max;
 		math::vector_transform(hitbox->bbmax, data->matrix[matrix][hitbox->bone], max);
 
-		return math::segment_to_segment(ctx->shoot_position, end, min, max) <= hitbox->radius;
+		return math::segment_to_segment(ray_start, end, min, max) <= max(hitbox->radius - margin, 0.0f);
 	}
 	else
 	{
 		CGameTrace trace;
 
 		Ray_t ray;
-		ray.Init(ctx->shoot_position, end);
+		ray.Init(ray_start, end);
 
 		return clip_ray_to_hitbox(ray, hitbox, data->matrix[matrix][hitbox->bone], trace);
 	}
@@ -1560,4 +1595,5 @@ void Aim::extrapolate(crypt_ptr <Player> player, crypt_ptr <AnimationData> extra
 		extrapolated_data->flags |= FL_ONGROUND;
 
 	extrapolated_data->simulation_time += globals->intervalpertick;
+	extrapolated_data->extrapolated = true;
 }

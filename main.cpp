@@ -29,6 +29,7 @@
 
 #include "features\penetration.h"
 #include "features\prediction.h"
+#include "features\resolver.h"
 
 #include "features\sound_esp.h"
 #include "features\spectator_list.h"
@@ -160,6 +161,7 @@ DWORD WINAPI main_function(LPVOID module_address)
 
 	penetration = new Penetration;
 	engine_prediction = new Prediction;
+	resolver = new Resolver;
 
 	sound_esp = new SoundEsp;
 	spectator_list = new SpectatorList;

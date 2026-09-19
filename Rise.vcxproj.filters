@@ -98,6 +98,9 @@
     <ClCompile Include="features\animations.cpp">
       <Filter>features</Filter>
     </ClCompile>
+    <ClCompile Include="features\resolver.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
     <ClCompile Include="hooks\hooked_setupbones.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
@@ -630,6 +633,9 @@
       <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="features\animations.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\resolver.h">
       <Filter>features</Filter>
     </ClInclude>
     <ClInclude Include="features\movement.h">

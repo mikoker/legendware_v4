@@ -8,6 +8,7 @@
 #include "..\features\features.h"
 #include "..\features\aim.h"
 #include "..\features\animations.h"
+#include "..\features\resolver.h"
 #include "..\features\movement.h"
 
 #include "..\features\exploits.h"
@@ -117,6 +118,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 			ctx->damage_marker.clear();
 			ctx->shots_data.clear();
 			shots.clear();
+			resolver->reset();
 			world_color->force_update = true;
 
 			gamerules = nullptr;
@@ -180,10 +182,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 		ctx->visual_fake_ducking = false;
 		ctx->last_velocity_modifier = 1.0f;
 
-		for (auto i = 0; i < 65; ++i)
-		{
-			ctx->abs_missed[i] = 0;
-		}
+		resolver->reset();
 
 		was_valid = false;
 	}
@@ -331,6 +330,11 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 					current_shot = shot;
 					break;
 				}
+				else if (shot->hurt && globals->tickcount > shot->event_tickcount)
+				{
+					current_shot = shot;
+					break;
+				}
 				else if (shot->impact_count >= shot->expected_impacts && globals->tickcount > shot->event_tickcount)
 				{
 					current_shot = shot;
@@ -360,23 +364,21 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 					if (current_shot->hurt)
 					{
 						current_shot->shot_info.result = crypt_str("Hit");
-
-						if (current_shot->index > 0 && current_shot->index < 65)
-						{
-							ctx->abs_missed[current_shot->index] = 0;
-							animations->player_data[current_shot->index].brute_force_mask = 0;
-						}
+						current_shot->outcome = SHOT_OUTCOME_HIT;
+						if (current_shot->resolver_eligible && !current_shot->ambiguous && !current_shot->enemy_death &&
+							current_shot->selected_candidate_hit && current_shot->alternative_candidate_mask == 0)
+							resolver->record_hit(current_shot->index, current_shot->data.resolver);
 					}
 					else if (!current_shot->local_death && !current_shot->enemy_death)
 					{
-						auto fallback_head_miss = current_shot->expected_impacts == 1 && current_shot->impacts && !current_shot->occlusion &&
-							current_shot->hitbox == HITBOX_HEAD && current_shot->data.resolver_type == RESOLVER_NONE &&
-							current_shot->data.resolver_side == MATRIX_MAIN && current_shot->shot_info.hitchance >= 80;
+						auto record_valid = !current_shot->data.invalid && !current_shot->data.exploit && current_shot->data.network.valid;
+						auto candidate_mismatch = record_valid && current_shot->resolver_eligible && !current_shot->ambiguous &&
+							current_shot->expected_impacts == 1 && current_shot->impact_count >= current_shot->expected_impacts &&
+							!current_shot->occlusion && current_shot->selected_candidate_hit && current_shot->candidate_core_supported;
 
-						if (!current_shot->shot_info.safe && ((current_shot->impact_hit && current_shot->data.resolver_type != RESOLVER_NONE) || fallback_head_miss))
+						if (candidate_mismatch)
 						{
-							if (current_shot->index > 0 && current_shot->index < 65)
-								ctx->abs_missed[current_shot->index] = min(ctx->abs_missed[current_shot->index] + 1, 5);
+							resolver->record_miss(current_shot->index, current_shot->data.resolver);
 
 							if (config->misc.logs[LOGS_MISSES])
 							{
@@ -392,9 +394,6 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 									additional.insert(additional.begin(), crypt_str("SP"));
 								}
 
-								if (fallback_head_miss)
-									additional.insert(additional.begin(), crypt_str("Fallback"));
-
 								if (!additional.empty())
 								{
 									reason = logs->detailed_data(reason, additional);
@@ -404,6 +403,17 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 							}
 
 							current_shot->shot_info.result = crypt_str("Resolver");
+							current_shot->outcome = SHOT_OUTCOME_CANDIDATE_MISMATCH;
+						}
+						else if (current_shot->ambiguous)
+						{
+							current_shot->shot_info.result = crypt_str("Ambiguous");
+							current_shot->outcome = SHOT_OUTCOME_AMBIGUOUS;
+						}
+						else if (!record_valid)
+						{
+							current_shot->shot_info.result = crypt_str("Invalid record");
+							current_shot->outcome = SHOT_OUTCOME_INVALID_RECORD;
 						}
 						else if (!current_shot->impacts)
 						{
@@ -411,6 +421,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 								logs->add(crypt_str("Missed shot due to unregistered"), Color(config->misc.logs_color[LOGS_MISSES]), crypt_str("[ MISS ] "));
 
 							current_shot->shot_info.result = crypt_str("Unregistered");
+							current_shot->outcome = SHOT_OUTCOME_UNREGISTERED;
 						}
 						else
 						{
@@ -456,9 +467,15 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 							}
 
 							if (current_shot->occlusion)
+							{
 								current_shot->shot_info.result = crypt_str("Occlusion");
+								current_shot->outcome = SHOT_OUTCOME_OCCLUSION;
+							}
 							else
+							{
 								current_shot->shot_info.result = crypt_str("Spread");
+								current_shot->outcome = SHOT_OUTCOME_SPREAD;
+							}
 						}
 					}
 					else if (current_shot->local_death)
@@ -477,6 +494,8 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 					}
 				}
 
+				current_shot->state = SHOT_CLASSIFIED;
+				current_shot->end = true;
 				shots.erase(current_shot);
 			}
 		}

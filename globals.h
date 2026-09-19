@@ -106,8 +106,6 @@ public:
 	int original_choked_commands = 0;
 	int buy_count = 0;
 	int weapon_config = -1;
-	int missed[65][11]{};
-	int abs_missed[65]{};
 
 	float spread = 0.0f;
 	float inaccuracy = 0.0f;

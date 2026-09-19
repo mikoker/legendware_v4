@@ -179,7 +179,10 @@ void __stdcall hooked_createmove(int sequence_number, float input_sample_frameti
 		*ctx->send_packet.get() = true;
 
 	if (exploits->charge(cmd))
+	{
+		aim->mark_shots_sent(cmd);
 		return;
+	}
 
 	if (config->misc.automatic_peek[AUTOMATIC_PEEK_KEY] && !(cmd->buttons & IN_FORWARD || cmd->buttons & IN_MOVELEFT || cmd->buttons & IN_BACK || cmd->buttons & IN_MOVERIGHT || cmd->buttons & IN_JUMP))
 		movement_system->holding_automatic_peek = true;
@@ -198,8 +201,7 @@ void __stdcall hooked_createmove(int sequence_number, float input_sample_frameti
 
 	movement_system->fix_movement(cmd, movement_system->wish_angle, abs(cmd->viewangles.z) > 0.0f);
 
-	if (config->rage.enable)
-		aim->commit_shot(cmd);
+	aim->commit_shot(cmd);
 
 	local_animations->run(cmd, *ctx->send_packet.get());
 

@@ -36,6 +36,7 @@
     <ClCompile Include="features\movement.cpp" />
     <ClCompile Include="features\penetration.cpp" />
     <ClCompile Include="features\prediction.cpp" />
+    <ClCompile Include="features\resolver.cpp" />
     <ClCompile Include="features\sound_esp.cpp" />
     <ClCompile Include="features\spectator_list.cpp" />
     <ClCompile Include="features\third_person.cpp" />
@@ -181,6 +182,7 @@
     <ClInclude Include="features\movement.h" />
     <ClInclude Include="features\penetration.h" />
     <ClInclude Include="features\prediction.h" />
+    <ClInclude Include="features\resolver.h" />
     <ClInclude Include="features\sound_esp.h" />
     <ClInclude Include="features\spectator_list.h" />
     <ClInclude Include="features\third_person.h" />

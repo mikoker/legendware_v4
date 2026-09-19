@@ -8,6 +8,7 @@
 #include "..\features\movement.h"
 #include "..\features\draw_beams.h"
 #include "..\features\animations.h"
+#include "..\features\resolver.h"
 
 #include "..\features\esp.h"
 #include "..\features\dormant.h"
@@ -46,20 +47,27 @@ void Events::FireGameEvent(IGameEvent* event)
 
 			for (auto& shot : shots)
 			{
-				if (shot.start && shot.impact_count >= shot.expected_impacts)
-					shot.end = true;
-
-				if (shot.start || shot.end)
+				if (shot.state != SHOT_SENT || shot.end || !shot.outgoing)
 					continue;
 
-				current_shot = &shot;
-				break;
+				if (!current_shot)
+				{
+					current_shot = &shot;
+					continue;
+				}
+
+				if (shot.packet_command_number == current_shot->packet_command_number)
+				{
+					shot.ambiguous = true;
+					current_shot->ambiguous = true;
+				}
 			}
 
 			if (current_shot)
 			{
 				current_shot->start = true;
 				current_shot->event_tickcount = globals->tickcount;
+				current_shot->state = SHOT_FIRED;
 			}
 		}
 	}
@@ -96,29 +104,34 @@ void Events::FireGameEvent(IGameEvent* event)
 
 				if (player && player->valid())
 				{
-					auto backup_data = AnimationData(player);
-					current_shot->data.apply();
+					auto hitbox = player->get_hitbox(current_shot->hitbox);
+					current_shot->candidate_core_supported = hitbox && hitbox->radius > 1.0f;
+					for (auto i = 0; i < current_shot->data.resolver.count; ++i)
+					{
+						auto matrix = current_shot->data.resolver.candidates[i].matrix;
+						if (!aim->hitbox_intersection(current_shot->hitbox, matrix, player, &current_shot->data, position, 1.0f, &current_shot->shoot_position))
+							continue;
 
-					CGameTrace trace;
-					Ray_t ray;
+						if (i == current_shot->data.resolver.selected)
+							current_shot->selected_candidate_hit = true;
+						else
+							current_shot->alternative_candidate_mask |= 1u << i;
+					}
 
-					ray.Init(current_shot->shoot_position, position);
-					enginetrace->ClipRayToEntity(ray, MASK_SHOT_HULL | CONTENTS_HITBOX, player.get(), &trace);
+					current_shot->impact_hit = current_shot->selected_candidate_hit;
 
-					if (trace.hit_entity == player.get() && aim->hitbox_equal(trace.hitbox, current_shot->hitbox))
-						current_shot->impact_hit = true;
-
-					if (!current_shot->impact_hit)
-						current_shot->occlusion = current_shot->shoot_position.DistTo(position) < current_shot->distance;
+					current_shot->occlusion = current_shot->occlusion ||
+						current_shot->shoot_position.DistTo(position) + 8.0f < current_shot->distance;
 
 					current_shot->last_impact = position;
-					backup_data.apply(MATRIX_MAIN, true);
 				}
 				else
 					current_shot->enemy_death = true;
 
 				current_shot->impacts = true;
 				++current_shot->impact_count;
+				if (current_shot->impact_count >= current_shot->expected_impacts)
+					current_shot->state = SHOT_IMPACTS_COMPLETE;
 			}
 		}
 	}
@@ -198,16 +211,35 @@ void Events::FireGameEvent(IGameEvent* event)
 
 			crypt_ptr <Shot> current_shot;
 
-			for (auto& shot : shots)
+			for (auto shot = shots.rbegin(); shot != shots.rend(); ++shot)
 			{
-				if (!shot.start || shot.end)
+				if (!shot->start || shot->end || shot->state < SHOT_FIRED || !shot->impacts)
 					continue;
 
-				if (shot.index != userid_id || !shot.impacts)
+				if (shot->index != userid_id)
 					continue;
 
-				current_shot = &shot;
-				break;
+				if (!current_shot)
+				{
+					current_shot = &*shot;
+					continue;
+				}
+
+				shot->ambiguous = true;
+				current_shot->ambiguous = true;
+			}
+
+			if (!current_shot)
+			{
+				for (auto& shot : shots)
+				{
+					if (!shot.start || shot.end || shot.state < SHOT_FIRED || shot.index != userid_id)
+						continue;
+
+					shot.ambiguous = true;
+					current_shot = &shot;
+					break;
+				}
 			}
 
 			auto player = crypt_ptr <Player>((Player*)entitylist->GetClientEntity(userid_id));
@@ -216,8 +248,8 @@ void Events::FireGameEvent(IGameEvent* event)
 			{
 				if (current_shot && current_shot->player.get() == player.get())
 				{
-					current_shot->end = true;
 					current_shot->hurt = true;
+					current_shot->state = SHOT_HURT;
 					current_shot->shot_info.server_hitbox = hitgroup_name;
 					current_shot->shot_info.server_damage = damage;
 
@@ -274,12 +306,14 @@ void Events::FireGameEvent(IGameEvent* event)
 
 		auto attacker_id = engine->GetPlayerForUserID(attacker);
 		auto user_id = engine->GetPlayerForUserID(user);
+		for (auto& shot : shots)
+			if (shot.index == user_id)
+				shot.enemy_death = true;
 
 		esp->reset_animation(user_id);
 		if (user_id > 0 && user_id < 65)
 		{
-			ctx->abs_missed[user_id] = 0;
-			memset(ctx->missed[user_id], 0, sizeof(ctx->missed[user_id]));
+			resolver->reset(user_id);
 			animations->player_data[user_id].reset();
 		}
 
@@ -304,10 +338,9 @@ void Events::FireGameEvent(IGameEvent* event)
 
 		dormant->set_round_start_time(globals->curtime + 1.0f);
 		shots.clear();
+		resolver->reset();
 		for (auto i = 0; i < 65; ++i)
 		{
-			ctx->abs_missed[i] = 0;
-			memset(ctx->missed[i], 0, sizeof(ctx->missed[i]));
 			animations->player_data[i].reset();
 			esp->reset_animation(i);
 		}

@@ -6,6 +6,7 @@
 #include "features.h"
 #include "prediction.h"
 #include "logs.h"
+#include "resolver.h"
 
 enum ROTATE_MODE
 {
@@ -17,26 +18,32 @@ enum ROTATE_MODE
 	MATRIX_FIRST_LOW,
 	MATRIX_SECOND,
 	MATRIX_SECOND_LOW,
+	MATRIX_BASELINE,
 	MATRIX_MAX
-};
-
-enum ResolverEvidence
-{
-	RESOLVER_NONE,
-	RESOLVER_MOVING_LAYER,
-	RESOLVER_LBY_UPDATE,
-	RESOLVER_JITTER,
-	RESOLVER_LAST_MOVE,
-	RESOLVER_BRUTE_FORCE
 };
 
 enum
 {
 	LAYERS_ORIGINAL,
+	LAYERS_BASELINE,
 	LAYERS_ZERO,
 	LAYERS_FIRST,
 	LAYERS_SECOND,
 	LAYERS_MAX
+};
+
+struct NetworkAnimationSnapshot
+{
+	bool valid = false;
+	int flags = 0;
+	float simulation_time = 0.0f;
+	float old_simulation_time = 0.0f;
+	float duck_amount = 0.0f;
+	float lower_body_yaw = 0.0f;
+	Vector angles;
+	Vector abs_angles;
+	Vector velocity;
+	Vector origin;
 };
 
 class AnimationData
@@ -54,6 +61,7 @@ public:
 	bool shot;
 	bool backup;
 	bool exploit;
+	bool extrapolated;
 	bool strafing;
 	bool walking;
 
@@ -65,6 +73,8 @@ public:
 	int resolver_side;
 	int velocity_state;
 	int m_last_storred_tick;
+	ResolverResult resolver;
+	NetworkAnimationSnapshot network;
 
 	float curtime;
 	float simulation_time;
@@ -95,6 +105,7 @@ public:
 		backup = false;
 		shot = false;
 		exploit = false;
+		extrapolated = false;
 		strafing = false;
 		walking = false;
 
@@ -130,6 +141,7 @@ public:
 		shot = false;
 		backup = false;
 		exploit = false;
+		extrapolated = false;
 
 		choke = 0;
 		server_tick = 0;
@@ -302,23 +314,10 @@ public:
 	float last_loop_cycle;
 	float last_loop_rate;
 	float goal_feet_yaw;
-	float last_move_yaw;
-	float last_move_time;
-	float last_lby;
-	float last_lby_update_time;
-	float last_eye_yaw;
-	Vector last_move_origin;
 	AnimationState animation_state;
 	Player* animation_player;
 	float animation_spawn_time;
 	bool animation_initialized;
-	bool has_last_move;
-	bool has_lby;
-	bool has_eye_yaw;
-	bool jittering;
-	int jitter_ticks;
-	int resolved_side;
-	int brute_force_mask;
 
 	PlayerData()
 	{
@@ -333,23 +332,10 @@ public:
 		last_loop_cycle = 0.0f;
 		last_loop_rate = 0.0f;
 		goal_feet_yaw = 0.0f;
-		last_move_yaw = 0.0f;
-		last_move_time = 0.0f;
-		last_lby = 0.0f;
-		last_lby_update_time = 0.0f;
-		last_eye_yaw = 0.0f;
-		last_move_origin.Zero();
 		animation_state = AnimationState();
 		animation_player = nullptr;
 		animation_spawn_time = 0.0f;
 		animation_initialized = false;
-		has_last_move = false;
-		has_lby = false;
-		has_eye_yaw = false;
-		jittering = false;
-		jitter_ticks = 0;
-		resolved_side = MATRIX_MAIN;
-		brute_force_mask = 0;
 	}
 };
 

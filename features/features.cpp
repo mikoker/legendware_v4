@@ -23,6 +23,7 @@ crypt_ptr <Movement> movement_system;
 crypt_ptr <Hit_chams> hit_chams;
 crypt_ptr <Penetration> penetration;
 crypt_ptr <Prediction> engine_prediction;
+crypt_ptr <Resolver> resolver;
 crypt_ptr <SoundEsp> sound_esp;
 crypt_ptr <SpectatorList> spectator_list;
 crypt_ptr <ThirdPerson> third_person;

@@ -189,6 +189,28 @@ struct ShotInfo
 	Vector aim_point;
 };
 
+enum ShotState
+{
+	SHOT_CREATED,
+	SHOT_SENT,
+	SHOT_FIRED,
+	SHOT_IMPACTS_COMPLETE,
+	SHOT_HURT,
+	SHOT_CLASSIFIED
+};
+
+enum ShotOutcome
+{
+	SHOT_OUTCOME_NONE,
+	SHOT_OUTCOME_HIT,
+	SHOT_OUTCOME_CANDIDATE_MISMATCH,
+	SHOT_OUTCOME_SPREAD,
+	SHOT_OUTCOME_OCCLUSION,
+	SHOT_OUTCOME_UNREGISTERED,
+	SHOT_OUTCOME_AMBIGUOUS,
+	SHOT_OUTCOME_INVALID_RECORD
+};
+
 struct Shot
 {
 	bool safe = false;
@@ -202,15 +224,25 @@ struct Shot
 	bool local_death = false;
 	bool enemy_death = false;
 	bool latency = false;
+	bool outgoing = false;
+	bool ambiguous = false;
+	bool selected_candidate_hit = false;
+	bool candidate_core_supported = false;
+	bool resolver_eligible = false;
 
 	int index = 0;
 	int command_number = 0;
+	int packet_command_number = 0;
 	int tickcount = 0;
 	int event_tickcount = 0;
 	int hitbox = -1;
 	int hitgroup = -1;
 	int expected_impacts = 1;
 	int impact_count = 0;
+	int choked_commands = 0;
+	unsigned int alternative_candidate_mask = 0;
+	ShotState state = SHOT_CREATED;
+	ShotOutcome outcome = SHOT_OUTCOME_NONE;
 
 	float distance = 0.0f;
 
@@ -270,9 +302,10 @@ public:
 	virtual void automatic_stop(crypt_ptr <CUserCmd> cmd);
 	virtual void get_points(vector <Point>& points, int hitbox_index, crypt_ptr <Player> player, crypt_ptr <AnimationData> data);
 	virtual bool is_valid_head_point(crypt_ptr <Player> player, crypt_ptr <AnimationData> data, int matrix, const Vector& point);
-	virtual bool hitbox_intersection(int hitbox_index, int matrix, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, const Vector& end);
+	virtual bool hitbox_intersection(int hitbox_index, int matrix, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, const Vector& end, float margin = 0.0f, const Vector* start = nullptr);
 	virtual bool hitbox_equal(int first, int second);
 	virtual void commit_shot(crypt_ptr <CUserCmd> cmd);
+	virtual void mark_shots_sent(crypt_ptr <CUserCmd> cmd);
 
 	virtual float get_point_accuracy(const Vector& angle, int matrix, int hitbox_index, float spread, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, bool debug  =false);
 	virtual bool is_hit_chanced(float hit_chance, const Vector& angle, int matrix, int hitbox_index, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, bool check_damage = false, int damage = 1);
