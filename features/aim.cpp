@@ -1159,11 +1159,13 @@ void Aim::get_points(vector <Point>& points, int hitbox_index, crypt_ptr <Player
 	auto radius = max(hitbox->radius - distance * spread, 0.0f);
 	auto scale = clamp(radius / hitbox->radius, 0.0f, 1.0f);
 
-	if (scale <= 0.0f)
-		scale = 1.0f;
-
 	if (config->rage.weapon[ctx->weapon_config].static_point_scale)
 		scale = hitbox_index == HITBOX_HEAD ? config->rage.weapon[ctx->weapon_config].head_scale : config->rage.weapon[ctx->weapon_config].body_scale;
+	else if (scale <= 0.0f)
+	{
+		points.emplace_back(Point(center, 0.0f));
+		return;
+	}
 
 	Vector min;
 	math::vector_transform(hitbox->bbmin, data->matrix[MATRIX_MAIN][hitbox->bone], min);
