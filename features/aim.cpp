@@ -1426,12 +1426,8 @@ bool Aim::hitbox_intersection(int hitbox_index, int matrix, crypt_ptr <Player> p
 void Aim::extrapolate(crypt_ptr <Player> player, crypt_ptr <AnimationData> extrapolated_data, crypt_ptr <AnimationData> last_data, crypt_ptr <AnimationData> previous_data)
 {
 	auto move_speed = ((extrapolated_data->origin - previous_data->origin) * (1.0f / (extrapolated_data->simulation_time - previous_data->simulation_time))).Length2D();
-	auto should_jump = !(last_data->flags & FL_ONGROUND);
-
 	if (!(extrapolated_data->flags & FL_ONGROUND))
 		extrapolated_data->velocity.z -= convars_manager->convars[CONVAR_SV_GRAVITY]->GetFloat() * globals->intervalpertick;
-	else if (should_jump)
-		extrapolated_data->velocity.z = convars_manager->convars[CONVAR_SV_JUMP_IMPULSE]->GetFloat();
 
 	auto origin = extrapolated_data->origin;
 	auto end = origin + extrapolated_data->velocity * globals->intervalpertick;
@@ -1446,7 +1442,7 @@ void Aim::extrapolate(crypt_ptr <Player> player, crypt_ptr <AnimationData> extra
 
 	enginetrace->TraceRay(ray, CONTENTS_SOLID, &filter, &trace);
 
-	if (extrapolated_data->flags & FL_ONGROUND && trace.fraction != 1.0f && !should_jump && extrapolated_data->velocity.Dot(trace.plane.normal) <= FLT_EPSILON) //-V550
+	if (extrapolated_data->flags & FL_ONGROUND && trace.fraction != 1.0f && extrapolated_data->velocity.Dot(trace.plane.normal) <= FLT_EPSILON) //-V550
 	{
 		ray.Init(origin + Vector(0.0f, 0.0f, 1.0f), end + Vector(0.0f, 0.0f, 1.0f), extrapolated_data->mins, extrapolated_data->maxs);
 		enginetrace->TraceRay(ray, CONTENTS_SOLID, &filter, &trace);
