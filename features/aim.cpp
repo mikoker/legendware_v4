@@ -409,8 +409,24 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 
 	final_target.data->apply();
 	auto angle = math::calculate_angle(ctx->shoot_position, final_target.point.point);
+	auto required_damage = config->rage.weapon[ctx->weapon_config].minimum_damage;
 
-	if (!jump_scout && !exploits->double_tap && ctx->weapon_config != WEAPON_CONFIG_TASER && !is_hit_chanced((float)config->rage.weapon[ctx->weapon_config].hit_chance, angle, MATRIX_MAIN, final_target.hitbox, final_target.player, final_target.data, true, (int)min((float)final_target.damage * (float)config->rage.weapon[ctx->weapon_config].hit_chance * 0.01f, (float)final_target.player->m_iHealth())))
+	if (required_damage > 100)
+		required_damage = clamp(required_damage, 1, final_target.player->m_iHealth() + required_damage - 100);
+	else
+		required_damage = clamp(required_damage, 1, final_target.player->m_iHealth());
+
+	if (config->rage.force_damage_key.state)
+	{
+		required_damage = config->rage.weapon[ctx->weapon_config].force_damage_value;
+
+		if (required_damage > 100)
+			required_damage = clamp(required_damage, 1, final_target.player->m_iHealth() + required_damage - 100);
+		else
+			required_damage = clamp(required_damage, 1, final_target.player->m_iHealth());
+	}
+
+	if (!jump_scout && !exploits->double_tap && ctx->weapon_config != WEAPON_CONFIG_TASER && !is_hit_chanced((float)config->rage.weapon[ctx->weapon_config].hit_chance, angle, MATRIX_MAIN, final_target.hitbox, final_target.player, final_target.data, true, required_damage))
 		return;
 
 	cmd->buttons |= IN_ATTACK;
