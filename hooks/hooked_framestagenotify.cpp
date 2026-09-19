@@ -344,9 +344,9 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 				{
 					current_shot = shot;
 
-					if (ctx->local()->valid())
+					if (ctx->local()->valid() && !current_shot->enemy_death)
 						current_shot->latency = true;
-					else
+					else if (!ctx->local()->valid())
 						current_shot->local_death = true;
 
 					break;
@@ -357,7 +357,15 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 			{
 				bullet_tracer->pushImpactInfo({ globals->curtime, current_shot->shoot_position, current_shot->shot_info.aim_point });
 
-				if (!current_shot->latency)
+				if (current_shot->latency)
+				{
+					if (config->misc.logs[LOGS_MISSES])
+						logs->add(crypt_str("Missed shot due to unregistered"), Color(config->misc.logs_color[LOGS_MISSES]), crypt_str("[ MISS ] "));
+
+					current_shot->shot_info.result = crypt_str("Unregistered");
+					current_shot->outcome = SHOT_OUTCOME_UNREGISTERED;
+				}
+				else
 				{
 					std::vector<std::string> additional;
 
@@ -407,11 +415,17 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 						}
 						else if (current_shot->ambiguous)
 						{
+							if (config->misc.logs[LOGS_MISSES])
+								logs->add(crypt_str("Missed shot due to ambiguous events"), Color(config->misc.logs_color[LOGS_MISSES]), crypt_str("[ MISS ] "));
+
 							current_shot->shot_info.result = crypt_str("Ambiguous");
 							current_shot->outcome = SHOT_OUTCOME_AMBIGUOUS;
 						}
 						else if (!record_valid)
 						{
+							if (config->misc.logs[LOGS_MISSES])
+								logs->add(crypt_str("Missed shot due to invalid record"), Color(config->misc.logs_color[LOGS_MISSES]), crypt_str("[ MISS ] "));
+
 							current_shot->shot_info.result = crypt_str("Invalid record");
 							current_shot->outcome = SHOT_OUTCOME_INVALID_RECORD;
 						}

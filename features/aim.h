@@ -265,6 +265,7 @@ class Aim
 	vector <AnimationData> backup;
 	vector <PreparedTarget> targets;
 	Shot pending_shot;
+	string pending_shot_log;
 	bool has_pending_shot = false;
 
 	

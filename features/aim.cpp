@@ -659,7 +659,7 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	for (auto i = 0; i < final_target.data->resolver.count; ++i)
 		log += std::format(" [{}:{:.1f}/{:.2f}]", i, final_target.data->resolver.candidates[i].yaw, final_target.data->resolver.candidates[i].score);
 
-	logs->add(log, Color::LightBlue, crypt_str("[ SHOT ] "));
+	pending_shot_log = log;
 #endif
 
 	Shot shot;
@@ -730,6 +730,9 @@ void Aim::commit_shot(crypt_ptr <CUserCmd> cmd)
 	pending_shot.state = SHOT_SENT;
 	shots.emplace_back(pending_shot);
 	ctx->shots_data.emplace_front(ShotData(cmd->command_number, ctx->local()->m_flVelocityModifier(), globals->curtime));
+#if BETA
+	logs->add(pending_shot_log, Color::LightBlue, crypt_str("[ SHOT ] "));
+#endif
 	has_pending_shot = false;
 }
 

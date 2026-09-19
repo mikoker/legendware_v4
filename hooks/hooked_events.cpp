@@ -307,7 +307,9 @@ void Events::FireGameEvent(IGameEvent* event)
 		auto attacker_id = engine->GetPlayerForUserID(attacker);
 		auto user_id = engine->GetPlayerForUserID(user);
 		for (auto& shot : shots)
-			if (shot.index == user_id)
+			if (user_id == engine->GetLocalPlayer())
+				shot.local_death = true;
+			else if (shot.index == user_id)
 				shot.enemy_death = true;
 
 		esp->reset_animation(user_id);
@@ -337,6 +339,9 @@ void Events::FireGameEvent(IGameEvent* event)
 		ctx->last_round_half = false;
 
 		dormant->set_round_start_time(globals->curtime + 1.0f);
+		if (config->misc.logs[LOGS_MISSES])
+			for (auto i = 0; i < shots.size(); ++i)
+				logs->add(crypt_str("Missed shot due to round transition"), Color(config->misc.logs_color[LOGS_MISSES]), crypt_str("[ MISS ] "));
 		shots.clear();
 		resolver->reset();
 		for (auto i = 0; i < 65; ++i)
