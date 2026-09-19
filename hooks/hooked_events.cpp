@@ -280,9 +280,12 @@ void Events::FireGameEvent(IGameEvent* event)
 #if BETA
 				if (current_shot && current_shot->hurt_fake)
 				{
-					ss << crypt_str("Hit ") << userid_info.szName << crypt_str(" in the ") << hitgroup_name << crypt_str(" for ") << damage;
-					ss << crypt_str(" damage (") << health << crypt_str(" health remaining, geometry mismatch: aimed ") << current_shot->shot_info.client_hitbox;
-					ss << crypt_str(", cmd ") << current_shot->command_number << crypt_str(", sim ") << std::format("{:.3f}", current_shot->data.simulation_time) << crypt_str(")");
+					ss << "Hit " << userid_info.szName << " in the " << hitgroup_name << " for " << damage;
+					ss << " damage (" << health << " health remaining, ";
+					if (current_shot->ambiguous)
+						ss << "ambiguous shot correlation)";
+					else
+						ss << "geometry mismatch: aimed " << current_shot->shot_info.client_hitbox << ", cmd " << current_shot->command_number << ", sim " << std::format("{:.3f}", current_shot->data.simulation_time) << ')';
 
 					logs->add(ss.str(), Color(config->misc.logs_color[LOGS_HITS]), crypt_str("[ HIT ] "));
 				}
