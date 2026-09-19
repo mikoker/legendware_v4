@@ -388,11 +388,14 @@ bool Penetration::fire_bullet(Vector& direction, bool& visible, float& current_d
 
 	auto current_shoot_position = shoot_position;
 	auto current_distance = 0.0f;
-	auto max_range = ctx->weapon_data()->range;
+	const auto weapon_range = ctx->weapon_data()->range;
 
 	while (current_damage >= 1.0f)
 	{
-		max_range -= current_distance;
+		auto max_range = weapon_range - current_distance;
+		if (max_range <= 0.0f)
+			break;
+
 		auto end = current_shoot_position + direction * max_range;
 
 		Ray_t ray;
