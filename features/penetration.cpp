@@ -407,7 +407,7 @@ bool Penetration::fire_bullet(Vector& direction, bool& visible, float& current_d
 		enginetrace->TraceRay(ray, MASK_SHOT_HULL | CONTENTS_HITBOX, &filter, &enter_trace);
 
 		if (player)
-			clip_trace_to_player(player, shoot_position, end + direction * 40.0f, MASK_SHOT_HULL | CONTENTS_HITBOX, &filter, &enter_trace);
+			clip_trace_to_player(player, current_shoot_position, end + direction * 40.0f, MASK_SHOT_HULL | CONTENTS_HITBOX, &filter, &enter_trace);
 
 		if (enter_trace.fraction == 1.0f) //-V550
 			break;
