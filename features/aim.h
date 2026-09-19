@@ -214,6 +214,7 @@ enum ShotOutcome
 struct Shot
 {
 	bool safe = false;
+	bool visible = false;
 	bool start = false;
 	bool end = false;
 	bool impacts = false;

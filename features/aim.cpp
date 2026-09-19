@@ -550,6 +550,7 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	Shot shot;
 
 	shot.safe = final_target.point.safe;
+	shot.visible = final_target.visible;
 	shot.resolver_eligible = !shot.safe && !final_target.data->invalid && !final_target.data->exploit &&
 		!final_target.data->extrapolated && final_target.data->network.valid &&
 		!config->player_list.player_settings[final_target.data->i].force_body_yaw &&

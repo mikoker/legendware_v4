@@ -120,8 +120,17 @@ void Events::FireGameEvent(IGameEvent* event)
 
 					current_shot->impact_hit = current_shot->selected_candidate_hit;
 
-					current_shot->occlusion = current_shot->occlusion ||
-						current_shot->shoot_position.DistTo(position) + 8.0f < current_shot->distance;
+					if (current_shot->visible)
+					{
+						CGameTrace trace;
+						CTraceFilter filter;
+						filter.pSkip = ctx->local().get();
+
+						Ray_t ray;
+						ray.Init(current_shot->shoot_position, current_shot->shot_info.aim_point);
+						enginetrace->TraceRay(ray, MASK_SHOT_HULL | CONTENTS_HITBOX, &filter, &trace);
+						current_shot->occlusion = current_shot->occlusion || (trace.fraction < 1.0f && trace.hit_entity != player.get());
+					}
 
 					current_shot->last_impact = position;
 				}
