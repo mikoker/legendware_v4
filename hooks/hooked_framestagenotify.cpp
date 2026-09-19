@@ -488,7 +488,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 							else
 							{
 								current_shot->shot_info.result = crypt_str("Unclassified");
-								current_shot->outcome = SHOT_OUTCOME_SPREAD;
+								current_shot->outcome = SHOT_OUTCOME_UNCLASSIFIED;
 							}
 						}
 					}
