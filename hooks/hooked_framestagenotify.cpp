@@ -464,7 +464,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 								}
 								else
 								{
-									std::string reason = "Missed shot due to spread";
+									std::string reason = "Missed shot due to unclassified impact";
 
 									if (current_shot->shot_info.hitchance)
 									{
@@ -487,7 +487,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 							}
 							else
 							{
-								current_shot->shot_info.result = crypt_str("Spread");
+								current_shot->shot_info.result = crypt_str("Unclassified");
 								current_shot->outcome = SHOT_OUTCOME_SPREAD;
 							}
 						}

@@ -281,7 +281,8 @@ void Events::FireGameEvent(IGameEvent* event)
 				if (current_shot && current_shot->hurt_fake)
 				{
 					ss << crypt_str("Hit ") << userid_info.szName << crypt_str(" in the ") << hitgroup_name << crypt_str(" for ") << damage;
-					ss << crypt_str(" damage (") << health << crypt_str(" health remaining, spread or resolver mismatch)");
+					ss << crypt_str(" damage (") << health << crypt_str(" health remaining, geometry mismatch: aimed ") << current_shot->shot_info.client_hitbox;
+					ss << crypt_str(", cmd ") << current_shot->command_number << crypt_str(", sim ") << std::format("{:.3f}", current_shot->data.simulation_time) << crypt_str(")");
 
 					logs->add(ss.str(), Color(config->misc.logs_color[LOGS_HITS]), crypt_str("[ HIT ] "));
 				}

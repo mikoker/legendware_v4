@@ -633,6 +633,9 @@ void Aim::commit_shot(crypt_ptr <CUserCmd> cmd)
 	shots.emplace_back(pending_shot);
 	ctx->shots_data.emplace_front(ShotData(cmd->command_number, ctx->local()->m_flVelocityModifier(), globals->curtime));
 #if BETA
+	pending_shot_log += std::format(", cmd: {}, packet: {}, sim: {:.3f}, point: {:.1f}/{:.1f}/{:.1f}", pending_shot.command_number,
+		pending_shot.packet_command_number, pending_shot.data.simulation_time, pending_shot.shot_info.aim_point.x,
+		pending_shot.shot_info.aim_point.y, pending_shot.shot_info.aim_point.z);
 	logs->add(pending_shot_log, Color::LightBlue, crypt_str("[ SHOT ] "));
 #endif
 	has_pending_shot = false;
