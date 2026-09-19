@@ -1469,7 +1469,7 @@ void Aim::extrapolate(crypt_ptr <Player> player, crypt_ptr <AnimationData> extra
 	}
 
 	extrapolated_data->origin = trace.endpos;
-	end = trace.endpos;
+	end = extrapolated_data->origin - Vector(0.0f, 0.0f, 2.0f);
 
 	ray.Init(extrapolated_data->origin, end, extrapolated_data->mins, extrapolated_data->maxs);
 	enginetrace->TraceRay(ray, CONTENTS_SOLID, &filter, &trace);
