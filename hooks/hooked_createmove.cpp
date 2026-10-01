@@ -129,6 +129,8 @@ void __stdcall hooked_createmove(int sequence_number, float input_sample_frameti
 	}*/
 	
 	movement_system->run(cmd);
+	movement_system->fix_movement(cmd, movement_system->wish_angle, abs(cmd->viewangles.z) > 0.0f);
+	movement_system->wish_angle = cmd->viewangles;
 
 	aim->automatic_stop(cmd);
 
