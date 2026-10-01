@@ -178,6 +178,8 @@ void Aim::prepare()
 
 		if (!player->valid(!ctx->friendly_fire))
 			continue;
+		if (player->m_bGunGameImmunity())
+			continue;
 
 		if (animations->animation_data[i].empty())
 			continue;
@@ -323,6 +325,8 @@ void Aim::scan()
 			{
 				auto last_data = crypt_ptr <AnimationData>(&target.data->front());
 				auto previous_data = crypt_ptr <AnimationData>(&target.data->at(1));
+				if (last_data->immune || last_data->dormant || !last_data->network.valid || !(last_data->matrix_ready & (1u << MATRIX_MAIN)))
+					continue;
 
 				if ((!convars_manager->convars[CONVAR_CL_LAGCOMPENSATION]->GetBool() || (last_data->origin - previous_data->origin).LengthSqr() > 64.0f) && last_data->choke > 0 && last_data->choke < 20 && (!(last_data->flags & FL_ONGROUND) || last_data->layers[LAYERS_ORIGINAL][6].m_flPlaybackRate > 0.0f))
 				{
@@ -390,6 +394,8 @@ void Aim::scan()
 void Aim::fire(crypt_ptr <CUserCmd> cmd)
 {
 	if (!final_target.data)
+		return;
+	if (final_target.data->immune || final_target.player->m_bGunGameImmunity())
 		return;
 
 	if (exploits->charging)
