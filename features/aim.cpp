@@ -381,7 +381,7 @@ void Aim::scan()
 
 			scan_hitboxes(target.player, data);
 
-			if (early_stop)
+			if (optimized_scan && early_stop)
 				return;
 		}
 	}
