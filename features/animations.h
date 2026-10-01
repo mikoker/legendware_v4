@@ -73,6 +73,9 @@ public:
 	int resolver_side;
 	int velocity_state;
 	int m_last_storred_tick;
+	int creation_tick = 0;
+	int simulation_tick_deviation = 0;
+	bool simulation_regressed = false;
 	ResolverResult resolver;
 	NetworkAnimationSnapshot network;
 

@@ -558,6 +558,9 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	log += crypt_str(", resolver evidence: ") + get_resolver_evidence(final_target.data->resolver_type);
 	log += crypt_str(", resolver side: ") + get_resolver_side(final_target.data->resolver_side);
 	log += crypt_str(", confidence: ") + to_string(final_target.data->resolver.confidence);
+	log += std::format(", invalid: {}, timing flagged: {}, extrapolated: {}, creation tick: {}, sim tick delta: {}, sim regressed: {}",
+		final_target.data->invalid, final_target.data->exploit, final_target.data->extrapolated, final_target.data->creation_tick,
+		final_target.data->simulation_tick_deviation, final_target.data->simulation_regressed);
 	for (auto i = 0; i < final_target.data->resolver.count; ++i)
 		log += std::format(" [{}:{:.1f}/{:.2f}]", i, final_target.data->resolver.candidates[i].yaw, final_target.data->resolver.candidates[i].score);
 

@@ -199,7 +199,10 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 	auto simulation_ticks_old = TIME_TO_TICKS(player->m_flOldSimulationTime());
 	auto simulation_ticks_new = TIME_TO_TICKS(player->m_flSimulationTime());
 
-	if (simulation_ticks_new < simulation_ticks_old || abs(globals->tickcount - simulation_ticks_new) > 2)
+	data->creation_tick = globals->tickcount;
+	data->simulation_tick_deviation = globals->tickcount - simulation_ticks_new;
+	data->simulation_regressed = simulation_ticks_new < simulation_ticks_old;
+	if (data->simulation_regressed || abs(data->simulation_tick_deviation) > 2)
 		data->exploit = true;
 
 	auto simulation_delta = clamp(simulation_ticks_new - simulation_ticks_old, 1, 18);

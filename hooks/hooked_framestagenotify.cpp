@@ -376,7 +376,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 					}
 					else if (!current_shot->local_death && !current_shot->enemy_death)
 					{
-						auto record_valid = !current_shot->data.invalid && !current_shot->data.exploit && current_shot->data.network.valid;
+						auto record_valid = !current_shot->data.invalid && current_shot->data.network.valid;
 						auto candidate_mismatch = record_valid && current_shot->resolver_eligible && !current_shot->ambiguous &&
 							current_shot->expected_bullets == 1 && current_shot->impact_count > 0 &&
 							!current_shot->occlusion && current_shot->selected_candidate_hit && current_shot->candidate_core_supported;
@@ -433,6 +433,13 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 
 							current_shot->shot_info.result = crypt_str("Unregistered");
 							current_shot->outcome = SHOT_OUTCOME_UNREGISTERED;
+						}
+						else if (current_shot->data.exploit)
+						{
+							if (config->misc.logs[LOGS_MISSES])
+								logs->add(crypt_str("Missed shot (untrusted record timing)"), Color(config->misc.logs_color[LOGS_MISSES]), crypt_str("[ MISS ] "));
+							current_shot->shot_info.result = crypt_str("Untrusted timing");
+							current_shot->outcome = SHOT_OUTCOME_UNTRUSTED_TIMING;
 						}
 						else
 						{
@@ -508,9 +515,10 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 				current_shot->state = SHOT_CLASSIFIED;
 				current_shot->end = true;
 #if BETA
-				logs->add(std::format("cmd: {}, packet: {}, target: {}, result: {}, ambiguous: {}, impacts: {}, last impact: {:.1f}/{:.1f}/{:.1f}",
+				logs->add(std::format("cmd: {}, packet: {}, target: {}, result: {}, ambiguous: {}, impacts: {}, last impact: {:.1f}/{:.1f}/{:.1f}, weapon: {}, expected: {}, actual: {}",
 					current_shot->command_number, current_shot->packet_command_number, current_shot->index, current_shot->shot_info.result,
-					current_shot->ambiguous, current_shot->impact_count, current_shot->last_impact.x, current_shot->last_impact.y, current_shot->last_impact.z),
+					current_shot->ambiguous, current_shot->impact_count, current_shot->last_impact.x, current_shot->last_impact.y, current_shot->last_impact.z,
+					current_shot->weapon_name, current_shot->shot_info.client_hitbox, current_shot->shot_info.server_hitbox),
 					Color::LightBlue, crypt_str("[ SHOT RESULT ] "));
 #endif
 				shots.erase(current_shot);
