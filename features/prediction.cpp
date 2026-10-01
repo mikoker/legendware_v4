@@ -138,6 +138,18 @@ void Prediction::end()
 	active = false;
 }
 
+void Prediction::restore_context()
+{
+	if (!active)
+		return;
+
+	ctx->local()->set_current_command(active_command);
+	*(int*)prediction_random_seed.get() = active_command->random_seed;
+	*(Player**)prediction_player.get() = ctx->local().get();
+	prediction->m_bInPrediction = true;
+	movehelper->set_host(ctx->local().get());
+}
+
 void Prediction::store_netvars(int command_number)
 {
 	auto data = crypt_ptr <NetvarsData>(&netvars_data[command_number % MULTIPLAYER_BACKUP]);
@@ -426,10 +438,6 @@ void Prediction::apply_restore_data(RestoreData& restore_data) //-V688
 	ctx->local()->m_vecOrigin() = restore_data.m_vecOrigin;
 
 	memcpy(&move_data, &restore_data.move_data, sizeof(CMoveData));
-	if (active)
-	{
-		ctx->local()->set_current_command(active_command);
-		*(int*)prediction_random_seed.get() = active_command->random_seed;
-	}
+	restore_context();
 	restore_data.reset();
 }

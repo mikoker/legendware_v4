@@ -130,6 +130,7 @@ public:
 	virtual void update_data();
 	virtual void store_data(crypt_ptr <CUserCmd> cmd);
 	virtual void end();
+	virtual void restore_context();
 	virtual void store_netvars(int command_number);
 	virtual void restore_netvars(int command_number);
 	virtual void detect_prediction_error(int command_number);

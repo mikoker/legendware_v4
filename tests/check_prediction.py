@@ -105,6 +105,7 @@ public:
     NetvarsData netvars_data[MULTIPLAYER_BACKUP];
     void start(crypt_ptr<CUserCmd>);
     void end();
+    void restore_context();
     void detect_prediction_error(int);
 };
 """
@@ -118,6 +119,15 @@ int main() {
     assert(helper.host == &ctx->player && prediction->m_bInPrediction);
     p.start(&simulated);
     p.start(&simulated);
+    ctx->player.set_current_command(nullptr); // Engine RunCommand's FinishCommand.
+    seed = -1;
+    prediction_owner = nullptr;
+    helper.set_host(nullptr);
+    prediction->m_bInPrediction = false;
+    p.restore_context();
+    assert(ctx->player.current == &outer && seed == outer.random_seed);
+    assert(prediction_owner == &ctx->player && helper.host == &ctx->player);
+    assert(prediction->m_bInPrediction);
     exploits->charging = true; // Recharge begins after prediction was opened.
     p.end();
     assert(globals->curtime == 123 && globals->frametime == .02f);
