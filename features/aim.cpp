@@ -25,6 +25,7 @@ void Aim::run(crypt_ptr <CUserCmd> cmd) //-V813
 
 	backup.clear();
 	targets.clear();
+	finalists.clear();
 	final_target.reset();
 	has_pending_shot = false;
 
@@ -395,8 +396,6 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 {
 	if (!final_target.data)
 		return;
-	if (final_target.data->immune || final_target.player->m_bGunGameImmunity())
-		return;
 
 	if (exploits->charging)
 		return;
@@ -413,28 +412,35 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	if (!config->rage.automatic_fire && !(cmd->buttons & IN_ATTACK && !ctx->automatic_revolver))
 		return;
 
-	final_target.data->apply();
-	auto angle = math::calculate_angle(ctx->shoot_position, final_target.point.point);
-	auto required_damage = config->rage.weapon[ctx->weapon_config].minimum_damage;
-
-	if (required_damage > 100)
-		required_damage = clamp(required_damage, 1, final_target.player->m_iHealth() + required_damage - 100);
-	else
-		required_damage = clamp(required_damage, 1, final_target.player->m_iHealth());
-
-	if (config->rage.force_damage_key.state)
+	auto validate = [&](Target& candidate)
 	{
-		required_damage = config->rage.weapon[ctx->weapon_config].force_damage_value;
-
+		if (candidate.data->immune || candidate.player->m_bGunGameImmunity())
+			return false;
+		candidate.data->apply();
+		auto angle = math::calculate_angle(ctx->shoot_position, candidate.point.point);
+		auto required_damage = config->rage.force_damage_key.state ? config->rage.weapon[ctx->weapon_config].force_damage_value : config->rage.weapon[ctx->weapon_config].minimum_damage;
 		if (required_damage > 100)
-			required_damage = clamp(required_damage, 1, final_target.player->m_iHealth() + required_damage - 100);
+			required_damage = clamp(required_damage, 1, candidate.player->m_iHealth() + required_damage - 100);
 		else
-			required_damage = clamp(required_damage, 1, final_target.player->m_iHealth());
-	}
+			required_damage = clamp(required_damage, 1, candidate.player->m_iHealth());
+		auto required_hitchance = exploits->double_tap ? config->rage.weapon[ctx->weapon_config].double_tap_hit_chance : config->rage.weapon[ctx->weapon_config].hit_chance;
+		return jump_scout || ctx->weapon_config == WEAPON_CONFIG_TASER || is_hit_chanced((float)required_hitchance, angle, MATRIX_MAIN, candidate.hitbox, candidate.player, candidate.data, true, required_damage);
+	};
 
-	auto required_hitchance = exploits->double_tap ? config->rage.weapon[ctx->weapon_config].double_tap_hit_chance : config->rage.weapon[ctx->weapon_config].hit_chance;
-	if (!jump_scout && ctx->weapon_config != WEAPON_CONFIG_TASER && !is_hit_chanced((float)required_hitchance, angle, MATRIX_MAIN, final_target.hitbox, final_target.player, final_target.data, true, required_damage))
-		return;
+	if (!validate(final_target))
+	{
+		stable_sort(finalists.begin(), finalists.end(), [](const Target& a, const Target& b) { return a.damage > b.damage; });
+		auto alternative = find_if(finalists.begin(), finalists.end(), [&](Target& candidate)
+		{
+			if (candidate.player.get() == final_target.player.get() && candidate.data.get() == final_target.data.get() && candidate.point.point == final_target.point.point)
+				return false;
+			return validate(candidate);
+		});
+		if (alternative == finalists.end())
+			return;
+		final_target = *alternative;
+	}
+	auto angle = math::calculate_angle(ctx->shoot_position, final_target.point.point);
 
 	cmd->buttons |= IN_ATTACK;
 	cmd->viewangles = angle;
@@ -934,6 +940,24 @@ bool Aim::is_valid_head_point(crypt_ptr <Player> player, crypt_ptr <AnimationDat
 	return true;
 }
 
+void Aim::consider_finalist(Target& candidate)
+{
+	const auto body = candidate.hitbox >= HITBOX_PELVIS && candidate.hitbox <= HITBOX_UPPER_CHEST;
+	for (auto& finalist : finalists)
+	{
+		const auto finalist_body = finalist.hitbox >= HITBOX_PELVIS && finalist.hitbox <= HITBOX_UPPER_CHEST;
+		if (finalist.player.get() != candidate.player.get() || finalist_body != body)
+			continue;
+		const auto same_points = finalist.data.get() == candidate.data.get() && finalist.hitbox == candidate.hitbox;
+		if (same_points && candidate.hitbox_s.prefer_safe && !candidate.point.safe && finalist.point.safe)
+			return;
+		if (candidate.damage > finalist.damage || (same_points && candidate.hitbox_s.prefer_safe && candidate.point.safe && !finalist.point.safe))
+			finalist = candidate;
+		return;
+	}
+	finalists.emplace_back(candidate);
+}
+
 void Aim::scan_hitboxes(crypt_ptr <Player> player, crypt_ptr <AnimationData> data) //-V813
 {
 	vector <Hitbox> hitboxes; //-V827
@@ -1091,6 +1115,18 @@ void Aim::scan_hitboxes(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 
 			if (!none_body_hitbox)
 				best_body_damage = max(best_body_damage, point.penetration_info.damage);
+
+			Target candidate;
+			candidate.visible = point.penetration_info.visible;
+			candidate.damage = point.penetration_info.damage;
+			candidate.hitbox = hitbox.hitbox;
+			candidate.hitbox_s.prefer_safe = hitbox.prefer_safe;
+			candidate.hitgroup = point.penetration_info.hitgroup;
+			candidate.penetration_count = point.penetration_info.penetration_count;
+			candidate.point = point;
+			candidate.player = player;
+			candidate.data = data;
+			consider_finalist(candidate);
 
 			if (point.penetration_info.penetration_count < final_target.penetration_count)
 				continue;

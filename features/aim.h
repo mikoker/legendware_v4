@@ -281,6 +281,7 @@ class Aim
 
 	vector <AnimationData> backup;
 	vector <PreparedTarget> targets;
+	vector<Target> finalists;
 	Shot pending_shot;
 	string pending_shot_log;
 	bool has_pending_shot = false;
@@ -291,6 +292,7 @@ class Aim
 	virtual void prepare();
 	virtual void scan();
 	virtual void fire(crypt_ptr <CUserCmd> cmd);
+	void consider_finalist(Target& candidate);
 	virtual crypt_ptr <AnimationData> get_data(int type, crypt_ptr <deque <AnimationData>> data);
 
 	bool clip_ray_to_hitbox(const Ray_t& ray, crypt_ptr <mstudiobbox_t> hitbox, matrix3x4_t& matrix, CGameTrace& trace);
