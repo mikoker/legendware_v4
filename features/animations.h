@@ -52,6 +52,7 @@ public:
 	int i;
 
 	matrix3x4_t matrix[MATRIX_MAX][MAXSTUDIOBONES];
+	unsigned int matrix_ready = 0;
 	AnimationLayer layers[LAYERS_MAX][13];
 	ShortAnimationLayer server_layers[13];
 
@@ -167,6 +168,7 @@ public:
 		if (store_extra)
 		{
 			memcpy(matrix[MATRIX_MAIN], player->m_CachedBoneData().Base(), player->m_CachedBoneData().Count() * sizeof(matrix3x4_t));
+			matrix_ready = 1u << MATRIX_MAIN;
 			memcpy(layers[LAYERS_ORIGINAL], player->get_animation_layer().get(), player->get_animation_layers_count() * sizeof(AnimationLayer));
 		}
 
@@ -241,6 +243,8 @@ public:
 			return false;
 
 		if (invalid)
+			return false;
+		if (!(matrix_ready & (1u << MATRIX_MAIN)))
 			return false;
 
 		if (immune)

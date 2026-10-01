@@ -578,6 +578,7 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	shot.safe = final_target.point.safe;
 	shot.visible = final_target.visible;
 	shot.resolver_eligible = !shot.safe && !final_target.data->invalid && !final_target.data->exploit &&
+		final_target.data->resolver.count == RESOLVER_MAX_CANDIDATES &&
 		!final_target.data->extrapolated && final_target.data->network.valid &&
 		!config->player_list.player_settings[final_target.data->i].force_body_yaw &&
 		!config->player_list.player_settings[final_target.data->i].force_pitch && final_target.data->resolver.selected >= 0;
@@ -863,7 +864,7 @@ bool Aim::hitbox_equal(int first, int second)
 
 bool Aim::is_aggressive_safe(int hitbox_index, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, const Vector& point)
 {
-	if (data->resolver.count <= 0)
+	if (data->resolver.count != RESOLVER_MAX_CANDIDATES)
 		return false;
 
 	for (auto i = 0; i < data->resolver.count; ++i)
@@ -1446,6 +1447,8 @@ Vector Aim::get_spread(int seed)
 bool Aim::hitbox_intersection(int hitbox_index, int matrix, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, const Vector& end, float margin, const Vector* start) //-V813
 {
 	const auto& ray_start = start ? *start : ctx->shoot_position;
+	if (matrix < 0 || matrix >= MATRIX_MAX || !(data->matrix_ready & (1u << matrix)))
+		return false;
 	auto hitbox = player->get_hitbox(hitbox_index);
 
 	if (!hitbox)

@@ -73,15 +73,20 @@ void Resolver::resolve(Player* player, AnimationData& record, const AnimationDat
 
 	for (const auto& candidate : candidates)
 	{
+		if (!(record.matrix_ready & (1u << candidate.matrix)))
+			continue;
 		auto& out = result.candidates[result.count++];
 		out.source = candidate.source;
 		out.matrix = candidate.matrix;
 		out.yaw = candidate.baseline ? record.animation_state.goal_feet_yaw : math::normalize_yaw(eye_yaw + max_desync * candidate.scale);
 	}
+	if (!result.count)
+		return;
 	result.selected = 0;
-	result.selected_matrix = MATRIX_BASELINE;
+	result.selected_matrix = result.candidates[0].matrix;
+	record.resolver_side = result.selected_matrix;
 
-	if (!config->rage.enable || !ctx->local()->valid() || record.exploit ||
+	if (result.count != RESOLVER_MAX_CANDIDATES || !config->rage.enable || !ctx->local()->valid() || record.exploit ||
 		(player->m_iTeamNum() == ctx->local()->m_iTeamNum() && !ctx->friendly_fire))
 		return;
 

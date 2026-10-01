@@ -652,6 +652,8 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 
 		if (!success)
 			player->setup_bones(data->matrix[matrix], matrix == MATRIX_VISUAL_INTERPOLATED ? BONE_USED_BY_ANYTHING : BONE_USED_BY_HITBOX);
+		if (success)
+			data->matrix_ready |= 1u << matrix;
 
 		player->set_abs_origin(backup_abs_origin);
 		player->set_abs_angles(backup_abs_angles);
@@ -744,10 +746,10 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 	data->simulation_time = player->m_flSimulationTime();
 	data->origin = player->m_vecOrigin();
 	data->angles = player->m_angEyeAngles();
-	resolver_yaw(player, data, previous_data);
 	memcpy(player->get_animation_layer().get(), data->layers[LAYERS_BASELINE], player->get_animation_layers_count() * sizeof(AnimationLayer));
 	memcpy(player->m_flPoseParameters(), baseline_pose_parameters, sizeof(baseline_pose_parameters));
 	setup_matrix(player, data, MATRIX_BASELINE, roll);
+	resolver_yaw(player, data, previous_data);
 	*animation_state.get() = data->animation_state;
 	memcpy(player->get_animation_layer().get(), backup_layers, player->get_animation_layers_count() * sizeof(AnimationLayer));
 
@@ -768,6 +770,8 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 	if (baseline_selected)
 	{
 		memcpy(data->matrix[MATRIX_MAIN], data->matrix[MATRIX_BASELINE], MAXSTUDIOBONES * sizeof(matrix3x4_t));
+		if (data->matrix_ready & (1u << MATRIX_BASELINE))
+			data->matrix_ready |= 1u << MATRIX_MAIN;
 		memcpy(player->get_animation_layer().get(), data->layers[LAYERS_BASELINE], player->get_animation_layers_count() * sizeof(AnimationLayer));
 		memcpy(player->m_flPoseParameters(), baseline_pose_parameters, sizeof(baseline_pose_parameters));
 	}
