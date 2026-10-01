@@ -964,14 +964,14 @@ void Aim::scan_hitboxes(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 	for (auto& hitbox : hitboxes)
 	{
 		auto none_body_hitbox = hitbox.hitbox < HITBOX_PELVIS || hitbox.hitbox > HITBOX_UPPER_CHEST;
+		if (none_body_hitbox && (config->rage.weapon[ctx->weapon_config].body_aim == 2 || config->player_list.player_settings[data->i].force_body_aim))
+			continue;
 
 		if (body_aim && none_body_hitbox && best_body_damage > 0)
 		{
 			body_aim = false;
 
-			if (config->rage.weapon[ctx->weapon_config].body_aim == 2 || config->player_list.player_settings[data->i].force_body_aim)
-				break;
-			else if (config->rage.weapon[ctx->weapon_config].force_body_aim_if_lethal && best_body_damage >= player->m_iHealth())
+			if (config->rage.weapon[ctx->weapon_config].force_body_aim_if_lethal && best_body_damage >= player->m_iHealth())
 				break;
 			else if (config->rage.weapon[ctx->weapon_config].body_aim == 1 && best_body_damage >= minimum_damage)
 				break;
