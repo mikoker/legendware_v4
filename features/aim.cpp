@@ -426,7 +426,8 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 			required_damage = clamp(required_damage, 1, final_target.player->m_iHealth());
 	}
 
-	if (!jump_scout && !exploits->double_tap && ctx->weapon_config != WEAPON_CONFIG_TASER && !is_hit_chanced((float)config->rage.weapon[ctx->weapon_config].hit_chance, angle, MATRIX_MAIN, final_target.hitbox, final_target.player, final_target.data, true, required_damage))
+	auto required_hitchance = exploits->double_tap ? config->rage.weapon[ctx->weapon_config].double_tap_hit_chance : config->rage.weapon[ctx->weapon_config].hit_chance;
+	if (!jump_scout && ctx->weapon_config != WEAPON_CONFIG_TASER && !is_hit_chanced((float)required_hitchance, angle, MATRIX_MAIN, final_target.hitbox, final_target.player, final_target.data, true, required_damage))
 		return;
 
 	cmd->buttons |= IN_ATTACK;
