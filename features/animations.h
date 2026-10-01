@@ -88,6 +88,9 @@ public:
 	float lower_body_yaw_target;
 	float max_speed;
 	float roll;
+	float collision_change_time = 0.0f;
+	float collision_change_origin = 0.0f;
+	uint32_t recent_bone_counter = 0;
 
 	Vector angles;
 	Vector abs_angles;
@@ -192,7 +195,10 @@ public:
 		abs_angles = player->GetAbsAngles();
 		velocity = player->m_vecVelocity();
 		origin = player->m_vecOrigin();
-		render_origin = player->m_vecOrigin();
+		render_origin = player->GetAbsOrigin();
+		collision_change_time = player->m_flCollisionChangeTime();
+		collision_change_origin = player->m_flCollisionChangeOrigin();
+		recent_bone_counter = player->m_iMostRecentModelBoneCounter();
 
 		auto collideable = crypt_ptr <ICollideable> (player->GetCollideable());
 
@@ -215,8 +221,13 @@ public:
 		player->m_angEyeAngles() = angles;
 		player->set_abs_angles(abs_angles);
 		player->m_vecOrigin() = origin;
-		player->set_abs_origin(origin);
+		player->set_abs_origin(backup ? render_origin : origin);
 		player->set_collision_bounds(mins, maxs, true);
+		if (backup)
+		{
+			player->m_flCollisionChangeTime() = collision_change_time;
+			player->m_flCollisionChangeOrigin() = collision_change_origin;
+		}
 
 		memcpy(player->get_animation_layer().get(), layers[LAYERS_ORIGINAL], player->get_animation_layers_count() * sizeof(AnimationLayer));
 
@@ -225,14 +236,16 @@ public:
 			player->m_CachedBoneData().m_Size = bone_count;
 			memcpy(player->m_CachedBoneData().Base(), matrix[matrix_index], bone_count * sizeof(matrix3x4_t));
 
-			const auto current_backup_curtime = globals->curtime;
-
-			globals->curtime = TICKS_TO_TIME(ctx->local()->m_nTickBase());
-			((void(__thiscall*)(void*, void*, int))signatures_manager->signatures[SIGNATURE_MODIFY_BONES])(player.get(), player->m_CachedBoneData().Base(), BONE_USED_BY_HITBOX);
-			globals->curtime = current_backup_curtime;
+			if (!backup)
+			{
+				const auto current_backup_curtime = globals->curtime;
+				globals->curtime = TICKS_TO_TIME(ctx->local()->m_nTickBase());
+				((void(__thiscall*)(void*, void*, int))signatures_manager->signatures[SIGNATURE_MODIFY_BONES])(player.get(), player->m_CachedBoneData().Base(), BONE_USED_BY_HITBOX);
+				globals->curtime = current_backup_curtime;
+			}
 		}
 
-		player->m_iMostRecentModelBoneCounter() = player->m_iModelBoneCounter();
+		player->m_iMostRecentModelBoneCounter() = backup ? recent_bone_counter : player->m_iModelBoneCounter();
 	}
 
 	virtual bool valid(bool extra_checks = true, float limit = 0.2f, bool visual = false, int validation_tickbase = -1)
