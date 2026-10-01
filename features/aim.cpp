@@ -1459,15 +1459,30 @@ void Aim::extrapolate(crypt_ptr <Player> player, crypt_ptr <AnimationData> extra
 	Ray_t ray;
 	ray.Init(origin, end, extrapolated_data->mins, extrapolated_data->maxs);
 
-	CTraceFilter filter;
-	filter.pSkip = player.get();
+	// Use the engine's CTraceFilterSimple, including movement collision rules.
+	uint32_t filter[4] =
+	{
+		*(uint32_t*)(signatures_manager->signatures[SIGNATURE_TRACE_FILTER_SIMPLE] + 0x3D),
+		(uint32_t)player.get(),
+		COLLISION_GROUP_PLAYER_MOVEMENT,
+		0
+	};
+	auto contents_mask = MASK_PLAYERSOLID;
+	auto solid_teammates = convars_manager->convars[CONVAR_MP_SOLID_TEAMMATES]->GetInt();
+	if (!solid_teammates || solid_teammates == 2)
+	{
+		if (player->m_iTeamNum() == 2)
+			contents_mask |= CONTENTS_TEAM1;
+		else if (player->m_iTeamNum() == 3)
+			contents_mask |= CONTENTS_TEAM2;
+	}
 
-	enginetrace->TraceRay(ray, MASK_PLAYERSOLID, &filter, &trace);
+	enginetrace->TraceRay(ray, contents_mask, (CTraceFilter*)filter, &trace);
 
 	if (extrapolated_data->flags & FL_ONGROUND && trace.fraction != 1.0f && extrapolated_data->velocity.Dot(trace.plane.normal) <= FLT_EPSILON) //-V550
 	{
 		ray.Init(origin + Vector(0.0f, 0.0f, 1.0f), end + Vector(0.0f, 0.0f, 1.0f), extrapolated_data->mins, extrapolated_data->maxs);
-		enginetrace->TraceRay(ray, MASK_PLAYERSOLID, &filter, &trace);
+		enginetrace->TraceRay(ray, contents_mask, (CTraceFilter*)filter, &trace);
 	}
 
 	if (trace.fraction != 1.0f) //-V550
@@ -1483,7 +1498,7 @@ void Aim::extrapolate(crypt_ptr <Player> player, crypt_ptr <AnimationData> extra
 			end = trace.endpos + extrapolated_data->velocity * globals->intervalpertick * (1.0f - trace.fraction);
 			ray.Init(trace.endpos, end, extrapolated_data->mins, extrapolated_data->maxs);
 
-			enginetrace->TraceRay(ray, MASK_PLAYERSOLID, &filter, &trace);
+			enginetrace->TraceRay(ray, contents_mask, (CTraceFilter*)filter, &trace);
 
 			if (trace.fraction == 1.0f) //-V550
 				break;
@@ -1494,7 +1509,7 @@ void Aim::extrapolate(crypt_ptr <Player> player, crypt_ptr <AnimationData> extra
 	end = extrapolated_data->origin - Vector(0.0f, 0.0f, 2.0f);
 
 	ray.Init(extrapolated_data->origin, end, extrapolated_data->mins, extrapolated_data->maxs);
-	enginetrace->TraceRay(ray, MASK_PLAYERSOLID, &filter, &trace);
+	enginetrace->TraceRay(ray, contents_mask, (CTraceFilter*)filter, &trace);
 
 	extrapolated_data->flags &= ~FL_ONGROUND;
 
