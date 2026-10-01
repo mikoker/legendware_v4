@@ -347,8 +347,13 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 
 							if (weight_speed > 0.0f)
 							{
-								player->m_vecVelocity().x = (player->m_vecVelocity().x / player->m_vecVelocity().Length()) * max_speed * weight_speed;
-								player->m_vecVelocity().y = (player->m_vecVelocity().y / player->m_vecVelocity().Length()) * max_speed * weight_speed;
+								auto velocity_length = player->m_vecVelocity().Length2D();
+								if (velocity_length > 0.0f)
+								{
+									auto velocity_scale = max_speed * weight_speed / velocity_length;
+									player->m_vecVelocity().x *= velocity_scale;
+									player->m_vecVelocity().y *= velocity_scale;
+								}
 
 								data->velocity_state = 3;
 							}
