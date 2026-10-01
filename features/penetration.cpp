@@ -272,7 +272,7 @@ bool Penetration::handle_bullet_penetration(CGameTrace& enter_trace, Vector& sho
 
 	CGameTrace exit_trace;
 
-	if (!trace_to_exit(enter_trace, exit_trace, enter_trace.endpos, direction) && !(enginetrace->GetPointContents(enter_trace.endpos, MASK_SHOT_HULL) & MASK_SHOT_HULL))
+	if (!trace_to_exit(enter_trace, exit_trace, enter_trace.endpos, direction))
 		return false;
 
 	auto enter_penetration_modifier = enter_surface_data->game.flPenetrationModifier;
