@@ -11,13 +11,16 @@ root = pathlib.Path(__file__).resolve().parents[1]
 source = (root / "features/prediction.cpp").read_text()
 start = source[source.index("void Prediction::start("):source.index("void Prediction::update_data(")]
 end = source[source.index("void Prediction::end("):source.index("void Prediction::store_netvars(")]
+correction = source[source.index("void Prediction::detect_prediction_error("):source.index("void Prediction::store_viewmodel(")]
 
 stub = r"""
 #include <cassert>
 #include <algorithm>
 #include <climits>
 #include <cstdint>
+#include <cmath>
 using std::clamp;
+using std::abs;
 template<class T> struct crypt_ptr {
     T* p = nullptr;
     crypt_ptr(T* value = nullptr): p(value) {}
@@ -25,29 +28,40 @@ template<class T> struct crypt_ptr {
     T* operator->() const { return p; }
     explicit operator bool() const { return p != nullptr; }
 };
-struct Vector { float z = 0; };
+struct Vector {
+    float x=0, y=0, z=0;
+    Vector operator-(const Vector& v) const { return {x-v.x,y-v.y,z-v.z}; }
+    float LengthSqr() const { return x*x+y*y+z*z; }
+};
 namespace math { Vector normalize_angles(Vector value) { return value; } }
 struct CUserCmd { Vector viewangles; float forwardmove=0, sidemove=0, upmove=0; int random_seed=0, command_number=10; };
 struct CMoveData {};
 struct Collideable { Vector OBBMaxs() { return {}; } };
 struct Player {
-    CUserCmd* current = nullptr; float modifier = 1; Vector position; Collideable bounds;
+    CUserCmd* current = nullptr; float modifier = 1; Vector position, punch, punch_velocity, view_punch, view_offset; Collideable bounds;
     void set_current_command(CUserCmd* cmd) { current = cmd; }
     Collideable* GetCollideable() { return &bounds; }
     int m_nTickBase() { return 100; }
     void UpdateCollisionBounds() {}
     float& m_flVelocityModifier() { return modifier; }
     Vector& m_vecLastPredictedPosition() { return position; }
+    Vector& m_vecOrigin() { return position; }
+    Vector& m_aimPunchAngle() { return punch; }
+    Vector& m_aimPunchAngleVel() { return punch_velocity; }
+    Vector& m_viewPunchAngle() { return view_punch; }
+    Vector& m_vecViewOffset() { return view_offset; }
 };
 struct Context { Player player; crypt_ptr<Player> local() { return &player; } } context;
 auto ctx = &context;
-struct Globals { float curtime=123, frametime=.02f, intervalpertick=.015625f; } global_state;
+struct Globals { float curtime=123, frametime=.02f, intervalpertick=.015625f, realtime=10; } global_state;
 auto globals = &global_state;
 #define TICKS_TO_TIME(t) ((t) * globals->intervalpertick)
-struct Exploits { bool charging=false; } exploit_state;
+struct Exploits { bool charging=false; float last_exploit_time=0; } exploit_state;
 auto exploits = &exploit_state;
 struct EnginePrediction {
     bool m_bInPrediction=false, m_bEnginePaused=false;
+    bool m_bPreviousAckHadErrors=false;
+    int m_nCommandsPredicted=5, m_nPreviousStartFrame=5;
     void SetupMove(Player*, CUserCmd*, void*, CMoveData*) {}
     void FinishMove(Player*, CUserCmd*, CMoveData*) {}
 } engine_state;
@@ -72,6 +86,12 @@ enum { SIGNATURE_PREDICTION_RANDOM_SEED, SIGNATURE_PREDICTION_PLAYER };
 struct Signatures { void* signatures[2]={&seed_ptr,&owner_ptr}; } signature_state;
 auto signatures_manager = &signature_state;
 unsigned MD5_PseudoRandom(int value) { return value + 100; }
+constexpr int MULTIPLAYER_BACKUP=150;
+struct NetvarsData {
+    int m_command_number=0, m_nTickBase=100;
+    float m_vecViewOffset=0, m_viewPunchAngle=0;
+    Vector m_aimPunchAngle, m_aimPunchAngleVel, m_vecOrigin;
+};
 class Prediction {
     float curtime=0, frametime=0;
     bool active=false;
@@ -82,8 +102,10 @@ class Prediction {
     float velocity_modifier=1;
     Vector origin;
 public:
+    NetvarsData netvars_data[MULTIPLAYER_BACKUP];
     void start(crypt_ptr<CUserCmd>);
     void end();
+    void detect_prediction_error(int);
 };
 """
 
@@ -113,13 +135,24 @@ int main() {
     p.end();
     assert(prediction->m_bInPrediction); // Preserve a pre-existing engine flag.
     assert(movement_state.begins == 2 && movement_state.ends == 2);
+    p.netvars_data[10].m_command_number = 10;
+    ctx->player.punch.x = .02f; // Network quantization, not an actual correction.
+    p.detect_prediction_error(10);
+    assert(ctx->player.punch.x == 0 && !prediction->m_bPreviousAckHadErrors);
+    ctx->player.punch.x = 2; // Authoritative recoil correction must survive.
+    ctx->player.punch_velocity.y = 1;
+    p.detect_prediction_error(10);
+    assert(ctx->player.punch.x == 2 && ctx->player.punch_velocity.y == 1);
+    assert(p.netvars_data[10].m_aimPunchAngle.x == 2);
+    assert(p.netvars_data[10].m_aimPunchAngleVel.y == 1);
+    assert(prediction->m_bPreviousAckHadErrors && prediction->m_nCommandsPredicted == 0);
 }
 """
 
 with tempfile.TemporaryDirectory() as tmp:
     directory = pathlib.Path(tmp)
     cpp = directory / "prediction_check.cpp"
-    cpp.write_text(stub + start + end + checks)
+    cpp.write_text(stub + start + end + correction + checks)
     exe = directory / "prediction_check.exe"
     subprocess.run(["cl", "/nologo", "/std:c++17", "/EHsc", str(cpp), f"/Fe:{exe}"], cwd=directory, check=True)
     subprocess.run([str(exe)], check=True)

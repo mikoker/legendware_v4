@@ -231,9 +231,9 @@ void Prediction::detect_prediction_error(int command_number)
 	if (view_punch_angle_delta <= 0.03125f) //-V674
 		ctx->local()->m_viewPunchAngle().x = data->m_viewPunchAngle;
 
-	if (abs(ctx->local()->m_aimPunchAngle().x - data->m_aimPunchAngle.x) > 0.03125f
-		|| abs(ctx->local()->m_aimPunchAngle().y - data->m_aimPunchAngle.y) > 0.03125f
-		|| abs(ctx->local()->m_aimPunchAngle().z - data->m_aimPunchAngle.z) > 0.03125f)
+	if (abs(ctx->local()->m_aimPunchAngle().x - data->m_aimPunchAngle.x) <= 0.03125f
+		&& abs(ctx->local()->m_aimPunchAngle().y - data->m_aimPunchAngle.y) <= 0.03125f
+		&& abs(ctx->local()->m_aimPunchAngle().z - data->m_aimPunchAngle.z) <= 0.03125f)
 		ctx->local()->m_aimPunchAngle() = data->m_aimPunchAngle;
 	else
 	{
@@ -241,9 +241,9 @@ void Prediction::detect_prediction_error(int command_number)
 		repredict = true;
 	}
 
-	if (abs(ctx->local()->m_aimPunchAngleVel().x - data->m_aimPunchAngleVel.x) > 0.03125f
-		|| abs(ctx->local()->m_aimPunchAngleVel().y - data->m_aimPunchAngleVel.y) > 0.03125f
-		|| abs(ctx->local()->m_aimPunchAngleVel().z - data->m_aimPunchAngleVel.z) > 0.03125f)
+	if (abs(ctx->local()->m_aimPunchAngleVel().x - data->m_aimPunchAngleVel.x) <= 0.03125f
+		&& abs(ctx->local()->m_aimPunchAngleVel().y - data->m_aimPunchAngleVel.y) <= 0.03125f
+		&& abs(ctx->local()->m_aimPunchAngleVel().z - data->m_aimPunchAngleVel.z) <= 0.03125f)
 		ctx->local()->m_aimPunchAngleVel() = data->m_aimPunchAngleVel;
 	else
 	{
