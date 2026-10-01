@@ -1462,12 +1462,12 @@ void Aim::extrapolate(crypt_ptr <Player> player, crypt_ptr <AnimationData> extra
 	CTraceFilter filter;
 	filter.pSkip = player.get();
 
-	enginetrace->TraceRay(ray, CONTENTS_SOLID, &filter, &trace);
+	enginetrace->TraceRay(ray, MASK_PLAYERSOLID, &filter, &trace);
 
 	if (extrapolated_data->flags & FL_ONGROUND && trace.fraction != 1.0f && extrapolated_data->velocity.Dot(trace.plane.normal) <= FLT_EPSILON) //-V550
 	{
 		ray.Init(origin + Vector(0.0f, 0.0f, 1.0f), end + Vector(0.0f, 0.0f, 1.0f), extrapolated_data->mins, extrapolated_data->maxs);
-		enginetrace->TraceRay(ray, CONTENTS_SOLID, &filter, &trace);
+		enginetrace->TraceRay(ray, MASK_PLAYERSOLID, &filter, &trace);
 	}
 
 	if (trace.fraction != 1.0f) //-V550
@@ -1483,7 +1483,7 @@ void Aim::extrapolate(crypt_ptr <Player> player, crypt_ptr <AnimationData> extra
 			end = trace.endpos + extrapolated_data->velocity * globals->intervalpertick * (1.0f - trace.fraction);
 			ray.Init(trace.endpos, end, extrapolated_data->mins, extrapolated_data->maxs);
 
-			enginetrace->TraceRay(ray, CONTENTS_SOLID, &filter, &trace);
+			enginetrace->TraceRay(ray, MASK_PLAYERSOLID, &filter, &trace);
 
 			if (trace.fraction == 1.0f) //-V550
 				break;
@@ -1494,7 +1494,7 @@ void Aim::extrapolate(crypt_ptr <Player> player, crypt_ptr <AnimationData> extra
 	end = extrapolated_data->origin - Vector(0.0f, 0.0f, 2.0f);
 
 	ray.Init(extrapolated_data->origin, end, extrapolated_data->mins, extrapolated_data->maxs);
-	enginetrace->TraceRay(ray, CONTENTS_SOLID, &filter, &trace);
+	enginetrace->TraceRay(ray, MASK_PLAYERSOLID, &filter, &trace);
 
 	extrapolated_data->flags &= ~FL_ONGROUND;
 
