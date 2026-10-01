@@ -330,12 +330,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 					current_shot = shot;
 					break;
 				}
-				else if (shot->hurt && globals->tickcount > shot->event_tickcount)
-				{
-					current_shot = shot;
-					break;
-				}
-				else if (shot->impact_count >= shot->expected_impacts && globals->tickcount > shot->event_tickcount)
+				else if (shot->events_settled(globals->tickcount))
 				{
 					current_shot = shot;
 					break;
@@ -344,7 +339,9 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 				{
 					current_shot = shot;
 
-					if (ctx->local()->valid() && !current_shot->enemy_death)
+					if (current_shot->hurt || current_shot->impacts)
+						current_shot->ambiguous = true;
+					else if (ctx->local()->valid() && !current_shot->enemy_death)
 						current_shot->latency = true;
 					else if (!ctx->local()->valid())
 						current_shot->local_death = true;
@@ -373,7 +370,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 					{
 						current_shot->shot_info.result = crypt_str("Hit");
 						current_shot->outcome = SHOT_OUTCOME_HIT;
-						if (current_shot->resolver_eligible && !current_shot->ambiguous && !current_shot->enemy_death &&
+						if (current_shot->resolver_eligible && current_shot->expected_bullets == 1 && !current_shot->ambiguous && !current_shot->enemy_death &&
 							current_shot->selected_candidate_hit && current_shot->alternative_candidate_mask == 0)
 							resolver->record_hit(current_shot->index, current_shot->data.resolver);
 					}
@@ -381,7 +378,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 					{
 						auto record_valid = !current_shot->data.invalid && !current_shot->data.exploit && current_shot->data.network.valid;
 						auto candidate_mismatch = record_valid && current_shot->resolver_eligible && !current_shot->ambiguous &&
-							current_shot->expected_impacts == 1 && current_shot->impact_count >= current_shot->expected_impacts &&
+							current_shot->expected_bullets == 1 && current_shot->impact_count > 0 &&
 							!current_shot->occlusion && current_shot->selected_candidate_hit && current_shot->candidate_core_supported;
 
 						if (candidate_mismatch)
@@ -510,6 +507,12 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 
 				current_shot->state = SHOT_CLASSIFIED;
 				current_shot->end = true;
+#if BETA
+				logs->add(std::format("cmd: {}, packet: {}, target: {}, result: {}, ambiguous: {}, impacts: {}, last impact: {:.1f}/{:.1f}/{:.1f}",
+					current_shot->command_number, current_shot->packet_command_number, current_shot->index, current_shot->shot_info.result,
+					current_shot->ambiguous, current_shot->impact_count, current_shot->last_impact.x, current_shot->last_impact.y, current_shot->last_impact.z),
+					Color::LightBlue, crypt_str("[ SHOT RESULT ] "));
+#endif
 				shots.erase(current_shot);
 			}
 		}

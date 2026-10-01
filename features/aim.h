@@ -194,7 +194,7 @@ enum ShotState
 	SHOT_CREATED,
 	SHOT_SENT,
 	SHOT_FIRED,
-	SHOT_IMPACTS_COMPLETE,
+	SHOT_COLLECTING_IMPACTS,
 	SHOT_HURT,
 	SHOT_CLASSIFIED
 };
@@ -236,9 +236,11 @@ struct Shot
 	int packet_command_number = 0;
 	int tickcount = 0;
 	int event_tickcount = 0;
+	int last_event_tickcount = 0;
+	unsigned int fire_sequence = 0;
 	int hitbox = -1;
 	int hitgroup = -1;
-	int expected_impacts = 1;
+	int expected_bullets = 1;
 	int impact_count = 0;
 	int choked_commands = 0;
 	unsigned int alternative_candidate_mask = 0;
@@ -249,11 +251,18 @@ struct Shot
 
 	Vector shoot_position;
 	Vector last_impact;
+	vector<Vector> impact_positions;
 
 	crypt_ptr <Player> player;
 	AnimationData data;
 
 	ShotInfo shot_info;
+
+	bool events_settled(int tick) const
+	{
+		// Allow two quiet ticks for impact/hurt delivery before final classification.
+		return start && (hurt || impacts) && tick > last_event_tickcount + 2;
+	}
 };
 
 class Aim
@@ -308,6 +317,7 @@ public:
 	virtual bool hitbox_equal(int first, int second);
 	virtual void commit_shot(crypt_ptr <CUserCmd> cmd);
 	virtual void mark_shots_sent(crypt_ptr <CUserCmd> cmd);
+	virtual crypt_ptr<Shot> find_impact_shot(unsigned int fire_sequence);
 
 	virtual float get_point_accuracy(const Vector& angle, int matrix, int hitbox_index, float spread, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, bool debug  =false);
 	virtual bool is_hit_chanced(float hit_chance, const Vector& angle, int matrix, int hitbox_index, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, bool check_damage = false, int damage = 1);

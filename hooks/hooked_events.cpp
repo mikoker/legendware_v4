@@ -19,6 +19,7 @@
 void Events::FireGameEvent(IGameEvent* event)
 {
 	auto event_name = event->GetName();
+	static unsigned int latest_fire_sequence = 0;
 
 	//if (ctx->loaded_script)
 	//{
@@ -43,6 +44,7 @@ void Events::FireGameEvent(IGameEvent* event)
 
 		if (user == engine->GetLocalPlayer())
 		{
+			++latest_fire_sequence;
 			crypt_ptr <Shot> current_shot;
 
 			for (auto& shot : shots)
@@ -67,6 +69,8 @@ void Events::FireGameEvent(IGameEvent* event)
 			{
 				current_shot->start = true;
 				current_shot->event_tickcount = globals->tickcount;
+				current_shot->last_event_tickcount = globals->tickcount;
+				current_shot->fire_sequence = latest_fire_sequence;
 				current_shot->state = SHOT_FIRED;
 			}
 		}
@@ -83,23 +87,23 @@ void Events::FireGameEvent(IGameEvent* event)
 			if (config->visuals.world.server_bullet_impacts)
 				debugoverlay->BoxOverlay(position, Vector(-1.0f, -1.0f, -1.0f), Vector(1.0f, 1.0f, 1.0f), QAngle(0.0f, 0.0f, 0.0f), (int)(config->visuals.world.server_bullet_impacts_clr[0] * 255.0f), (int)(config->visuals.world.server_bullet_impacts_clr[1] * 255.0f), (int)(config->visuals.world.server_bullet_impacts_clr[2] * 255.0f), (int)(config->visuals.world.server_bullet_impacts_clr[3] * 255.0f), 4.0f);
 
-			//auto player = crypt_ptr <Player>((Player*)entitylist->GetClientEntity(user));
-			crypt_ptr <Shot> current_shot;
-
-			for (auto& shot : shots)
-			{
-				if (!shot.start || shot.end)
-					continue;
-
-				if (shot.impact_count >= shot.expected_impacts)
-					continue;
-
-				current_shot = &shot;
-				break;
-			}
+			auto current_shot = aim->find_impact_shot(latest_fire_sequence);
 
 			if (current_shot)
 			{
+				current_shot->last_event_tickcount = globals->tickcount;
+				current_shot->impact_positions.emplace_back(position);
+				++current_shot->impact_count;
+				const auto furthest_impact = !current_shot->impacts || position.DistToSqr(current_shot->shoot_position) >= current_shot->last_impact.DistToSqr(current_shot->shoot_position);
+				current_shot->impacts = true;
+				if (!current_shot->hurt)
+					current_shot->state = SHOT_COLLECTING_IMPACTS;
+				if (!furthest_impact)
+					return;
+
+				current_shot->selected_candidate_hit = false;
+				current_shot->alternative_candidate_mask = 0;
+				current_shot->last_impact = position;
 				auto player = crypt_ptr <Player>((Player*)entitylist->GetClientEntity(current_shot->data.i));
 
 				if (player && player->valid())
@@ -132,15 +136,9 @@ void Events::FireGameEvent(IGameEvent* event)
 						current_shot->occlusion = current_shot->occlusion || (trace.fraction < 1.0f && trace.hit_entity != player.get());
 					}
 
-					current_shot->last_impact = position;
 				}
 				else
 					current_shot->enemy_death = true;
-
-				current_shot->impacts = true;
-				++current_shot->impact_count;
-				if (current_shot->impact_count >= current_shot->expected_impacts)
-					current_shot->state = SHOT_IMPACTS_COMPLETE;
 			}
 		}
 	}
@@ -222,7 +220,7 @@ void Events::FireGameEvent(IGameEvent* event)
 
 			for (auto shot = shots.rbegin(); shot != shots.rend(); ++shot)
 			{
-				if (!shot->start || shot->end || shot->state < SHOT_FIRED || !shot->impacts)
+				if (!shot->start || shot->end || shot->state < SHOT_FIRED || !shot->impacts || (shot->hurt && shot->expected_bullets == 1))
 					continue;
 
 				if (shot->index != userid_id)
@@ -242,7 +240,7 @@ void Events::FireGameEvent(IGameEvent* event)
 			{
 				for (auto& shot : shots)
 				{
-					if (!shot.start || shot.end || shot.state < SHOT_FIRED || shot.index != userid_id)
+					if (!shot.start || shot.end || shot.state < SHOT_FIRED || shot.index != userid_id || (shot.hurt && shot.expected_bullets == 1))
 						continue;
 
 					shot.ambiguous = true;
@@ -258,6 +256,7 @@ void Events::FireGameEvent(IGameEvent* event)
 				if (current_shot && current_shot->player.get() == player.get())
 				{
 					current_shot->hurt = true;
+					current_shot->last_event_tickcount = globals->tickcount;
 					current_shot->state = SHOT_HURT;
 					current_shot->shot_info.server_hitbox = hitgroup_name;
 					current_shot->shot_info.server_damage = damage;

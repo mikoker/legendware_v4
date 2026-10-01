@@ -577,7 +577,7 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	shot.tickcount = globals->tickcount;
 	shot.hitbox = final_target.hitbox;
 	shot.hitgroup = final_target.hitgroup;
-	shot.expected_impacts = max(ctx->weapon_data()->bullets, 1);
+	shot.expected_bullets = max(ctx->weapon_data()->bullets, 1);
 	shot.choked_commands = clientstate->m_nChokedCommands;
 	shot.distance = ctx->shoot_position.DistTo(final_target.point.point);
 	shot.shoot_position = ctx->shoot_position;
@@ -610,6 +610,24 @@ void Aim::mark_shots_sent(crypt_ptr <CUserCmd> cmd)
 		shot.outgoing = true;
 		shot.packet_command_number = cmd->command_number;
 	}
+}
+
+crypt_ptr<Shot> Aim::find_impact_shot(unsigned int fire_sequence)
+{
+	crypt_ptr<Shot> latest;
+	for (auto& shot : shots)
+		if (shot.start && !shot.end && shot.fire_sequence == fire_sequence)
+			latest = &shot;
+
+	if (latest)
+		for (auto& shot : shots)
+			if (&shot != latest.get() && shot.start && !shot.end && !shot.hurt && shot.event_tickcount == latest->event_tickcount)
+			{
+				shot.ambiguous = true;
+				latest->ambiguous = true;
+			}
+
+	return latest;
 }
 
 void Aim::commit_shot(crypt_ptr <CUserCmd> cmd)
