@@ -195,7 +195,7 @@ public:
 		abs_angles = player->GetAbsAngles();
 		velocity = player->m_vecVelocity();
 		origin = player->m_vecOrigin();
-		render_origin = player->GetAbsOrigin();
+		render_origin = store_extra ? player->GetAbsOrigin() : player->m_vecOrigin();
 		collision_change_time = player->m_flCollisionChangeTime();
 		collision_change_origin = player->m_flCollisionChangeOrigin();
 		recent_bone_counter = player->m_iMostRecentModelBoneCounter();
