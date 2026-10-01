@@ -181,6 +181,7 @@ void __stdcall hooked_createmove(int sequence_number, float input_sample_frameti
 	if (exploits->charge(cmd))
 	{
 		aim->mark_shots_sent(cmd);
+		engine_prediction->end();
 		return;
 	}
 

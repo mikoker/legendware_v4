@@ -98,6 +98,8 @@ class Prediction //-V730
 {
 	float curtime = 0.0f;
 	float frametime = 0.0f;
+	bool active = false;
+	CUserCmd* active_command = nullptr;
 
 	crypt_ptr <int> prediction_random_seed;
 	crypt_ptr <int> prediction_player;

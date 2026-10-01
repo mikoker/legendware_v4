@@ -10,12 +10,18 @@ void Prediction::start(crypt_ptr <CUserCmd> cmd)
 {
 	cmd->viewangles = math::normalize_angles(cmd->viewangles);
 
-	curtime = globals->curtime;
-	frametime = globals->frametime;
-	in_prediction = prediction->m_bInPrediction;
-
 	if (exploits->charging)
 		return;
+
+	if (!active)
+	{
+		curtime = globals->curtime;
+		frametime = globals->frametime;
+		in_prediction = prediction->m_bInPrediction;
+		active_command = cmd.get();
+		active = true;
+		movement->StartTrackPredictionErrors(ctx->local().get());
+	}
 
 	cmd->forwardmove = clamp(cmd->forwardmove, -convars_manager->convars[CONVAR_CL_FORWARDSPEED]->GetFloat(), convars_manager->convars[CONVAR_CL_FORWARDSPEED]->GetFloat());
 	cmd->sidemove = clamp(cmd->sidemove, -convars_manager->convars[CONVAR_CL_SIDESPEED]->GetFloat(), convars_manager->convars[CONVAR_CL_SIDESPEED]->GetFloat());
@@ -26,13 +32,11 @@ void Prediction::start(crypt_ptr <CUserCmd> cmd)
 
 	if (!prediction_random_seed)
 		prediction_random_seed = *(int**)signatures_manager->signatures[SIGNATURE_PREDICTION_RANDOM_SEED];
-	else
-		*(int*)prediction_random_seed.get() = cmd->random_seed;
+	*(int*)prediction_random_seed.get() = cmd->random_seed;
 
 	if (!prediction_player)
 		prediction_player = *(int**)signatures_manager->signatures[SIGNATURE_PREDICTION_PLAYER];
-	else
-		*(Player**)prediction_player.get() = ctx->local().get(); //-V114
+	*(Player**)prediction_player.get() = ctx->local().get(); //-V114
 
 	auto maxs = ctx->local()->GetCollideable()->OBBMaxs();
 
@@ -41,7 +45,6 @@ void Prediction::start(crypt_ptr <CUserCmd> cmd)
 
 	prediction->m_bInPrediction = true;
 
-	movement->StartTrackPredictionErrors(ctx->local().get());
 	movehelper->set_host(ctx->local().get());
 
 	prediction->SetupMove(ctx->local().get(), cmd.get(), movehelper.get(), &move_data);
@@ -113,25 +116,26 @@ void Prediction::store_data(crypt_ptr <CUserCmd> cmd)
 
 void Prediction::end()
 {
-	if (!exploits->charging)
-	{
-		movement->FinishTrackPredictionErrors(ctx->local().get());
-		ctx->local()->set_current_command(nullptr);
+	if (!active)
+		return;
 
-		*(int*)prediction_random_seed.get() = -1;
-		*(Player**)prediction_player.get() = nullptr; //-V114
+	movement->FinishTrackPredictionErrors(ctx->local().get());
+	ctx->local()->set_current_command(nullptr);
 
-		prediction->m_bInPrediction = in_prediction;
+	*(int*)prediction_random_seed.get() = -1;
+	*(Player**)prediction_player.get() = nullptr; //-V114
 
-		movement->Reset();
-		movehelper->set_host(nullptr);
-	}
+	prediction->m_bInPrediction = in_prediction;
+	movement->Reset();
+	movehelper->set_host(nullptr);
 
 	ctx->local()->m_flVelocityModifier() = velocity_modifier;
 	ctx->local()->m_vecLastPredictedPosition() = origin;
 
 	globals->curtime = curtime;
 	globals->frametime = frametime;
+	active_command = nullptr;
+	active = false;
 }
 
 void Prediction::store_netvars(int command_number)
@@ -422,5 +426,10 @@ void Prediction::apply_restore_data(RestoreData& restore_data) //-V688
 	ctx->local()->m_vecOrigin() = restore_data.m_vecOrigin;
 
 	memcpy(&move_data, &restore_data.move_data, sizeof(CMoveData));
+	if (active)
+	{
+		ctx->local()->set_current_command(active_command);
+		*(int*)prediction_random_seed.get() = active_command->random_seed;
+	}
 	restore_data.reset();
 }
