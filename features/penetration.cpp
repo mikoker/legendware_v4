@@ -415,11 +415,6 @@ bool Penetration::fire_bullet(Vector& direction, bool& visible, float& current_d
 		current_distance += enter_trace.fraction * max_range;
 		current_damage *= pow(ctx->weapon_data()->range_modifier, current_distance * 0.002f);
 
-		auto enter_surface_data = physicssurface->GetSurfaceData(enter_trace.surface.surfaceProps);
-
-		if (current_distance > 3000.0f && ctx->weapon_data()->penetration || enter_surface_data->game.flPenetrationModifier < 0.1f) //-V1051
-			break;
-
 		if (enter_trace.hit_entity && enter_trace.hitgroup <= HITGROUP_RIGHTLEG && enter_trace.hit_entity == player.get())
 		{
 			if (ctx->weapon() && ctx->weapon()->m_iItemDefinitionIndex() == WEAPON_TASER)
@@ -431,6 +426,10 @@ bool Penetration::fire_bullet(Vector& direction, bool& visible, float& current_d
 			hitgroup = enter_trace.hitgroup;
 			return true;
 		}
+
+		auto enter_surface_data = physicssurface->GetSurfaceData(enter_trace.surface.surfaceProps);
+		if (!enter_surface_data || (current_distance > 3000.0f && ctx->weapon_data()->penetration > 0.0f) || enter_surface_data->game.flPenetrationModifier < 0.1f)
+			break;
 
 		if (!penetration_count)
 			break;
