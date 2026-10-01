@@ -257,6 +257,12 @@ struct Shot
 	AnimationData data;
 
 	ShotInfo shot_info;
+	string weapon_name;
+
+	bool matches_weapon(const char* weapon) const
+	{
+		return weapon && !weapon_name.empty() && weapon_name == weapon;
+	}
 
 	bool events_settled(int tick) const
 	{

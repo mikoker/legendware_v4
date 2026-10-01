@@ -49,7 +49,7 @@ void Events::FireGameEvent(IGameEvent* event)
 
 			for (auto& shot : shots)
 			{
-				if (shot.state != SHOT_SENT || shot.end || !shot.outgoing)
+				if (shot.state != SHOT_SENT || shot.end || !shot.outgoing || !shot.matches_weapon(event->GetString(crypt_str("weapon")).c_str()))
 					continue;
 
 				if (!current_shot)
@@ -223,7 +223,7 @@ void Events::FireGameEvent(IGameEvent* event)
 				if (!shot->start || shot->end || shot->state < SHOT_FIRED || !shot->impacts || (shot->hurt && shot->expected_bullets == 1))
 					continue;
 
-				if (shot->index != userid_id)
+				if (shot->index != userid_id || !shot->matches_weapon(event->GetString(crypt_str("weapon")).c_str()))
 					continue;
 
 				if (!current_shot)
@@ -241,6 +241,8 @@ void Events::FireGameEvent(IGameEvent* event)
 				for (auto& shot : shots)
 				{
 					if (!shot.start || shot.end || shot.state < SHOT_FIRED || shot.index != userid_id || (shot.hurt && shot.expected_bullets == 1))
+						continue;
+					if (!shot.matches_weapon(event->GetString(crypt_str("weapon")).c_str()))
 						continue;
 
 					shot.ambiguous = true;
@@ -284,7 +286,7 @@ void Events::FireGameEvent(IGameEvent* event)
 					if (current_shot->ambiguous)
 						ss << "ambiguous shot correlation)";
 					else
-						ss << "geometry mismatch: aimed " << current_shot->shot_info.client_hitbox << ", cmd " << current_shot->command_number << ", sim " << std::format("{:.3f}", current_shot->data.simulation_time) << ')';
+						ss << "provisional hitgroup disagreement: aimed " << current_shot->shot_info.client_hitbox << ", cmd " << current_shot->command_number << ')';
 
 					logs->add(ss.str(), Color(config->misc.logs_color[LOGS_HITS]), crypt_str("[ HIT ] "));
 				}

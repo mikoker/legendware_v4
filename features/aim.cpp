@@ -565,6 +565,12 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 #endif
 
 	Shot shot;
+	if (ctx->weapon_data()->sz_weapon_name)
+	{
+		shot.weapon_name = ctx->weapon_data()->sz_weapon_name;
+		if (shot.weapon_name.rfind("weapon_", 0) == 0)
+			shot.weapon_name.erase(0, 7);
+	}
 
 	shot.safe = final_target.point.safe;
 	shot.visible = final_target.visible;

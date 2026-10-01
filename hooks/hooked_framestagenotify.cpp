@@ -370,7 +370,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 					{
 						current_shot->shot_info.result = crypt_str("Hit");
 						current_shot->outcome = SHOT_OUTCOME_HIT;
-						if (current_shot->resolver_eligible && current_shot->expected_bullets == 1 && !current_shot->ambiguous && !current_shot->enemy_death &&
+						if (current_shot->resolver_eligible && current_shot->expected_bullets == 1 && !current_shot->hurt_fake && !current_shot->ambiguous && !current_shot->enemy_death &&
 							current_shot->selected_candidate_hit && current_shot->alternative_candidate_mask == 0)
 							resolver->record_hit(current_shot->index, current_shot->data.resolver);
 					}

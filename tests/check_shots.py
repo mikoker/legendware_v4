@@ -13,10 +13,13 @@ matcher = source[source.index("crypt_ptr<Shot> Aim::find_impact_shot("):source.i
 header = (root / "features/aim.h").read_text()
 begin = header.index("bool events_settled(")
 settled = header[begin:header.index("\n\t}", begin) + len("\n\t}")]
+begin = header.index("bool matches_weapon(")
+weapon_match = header[begin:header.index("\n\t}", begin) + len("\n\t}")]
 
 stub = r"""
 #include <cassert>
 #include <vector>
+#include <string>
 template<class T> struct crypt_ptr {
     T* p=nullptr;
     crypt_ptr(T* value=nullptr): p(value) {}
@@ -28,7 +31,8 @@ struct Shot {
     bool start=false, end=false, hurt=false, impacts=false, ambiguous=false;
     unsigned int fire_sequence=0;
     int event_tickcount=0, last_event_tickcount=0, impact_count=0;
-""" + settled + r"""
+    std::string weapon_name;
+""" + settled + weapon_match + r"""
 };
 std::vector<Shot> shots;
 class Aim { public: crypt_ptr<Shot> find_impact_shot(unsigned int); };
@@ -68,6 +72,13 @@ int main() {
     assert(!aim.find_impact_shot(2));
     Shot pending;
     assert(!pending.events_settled(10000));
+    pending.weapon_name="scar20";
+    assert(pending.matches_weapon("scar20"));
+    assert(!pending.matches_weapon("inferno"));
+    assert(!pending.matches_weapon("hegrenade"));
+    assert(!pending.matches_weapon("knife"));
+    assert(!pending.matches_weapon("ssg08"));
+    assert(!pending.matches_weapon(nullptr));
 }
 """
 
