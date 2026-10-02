@@ -38,6 +38,8 @@ struct CUserCmd { Vector viewangles; float forwardmove=0, sidemove=0, upmove=0; 
 struct CMoveData {};
 struct Collideable { Vector OBBMaxs() { return {}; } };
 struct Player {
+	float spawn=1;
+	float m_flSpawnTime() { return spawn; }
     CUserCmd* current = nullptr; float modifier = 1; Vector position, punch, punch_velocity, view_punch, view_offset; Collideable bounds;
     void set_current_command(CUserCmd* cmd) { current = cmd; }
     Collideable* GetCollideable() { return &bounds; }
@@ -88,7 +90,9 @@ auto signatures_manager = &signature_state;
 unsigned MD5_PseudoRandom(int value) { return value + 100; }
 constexpr int MULTIPLAYER_BACKUP=150;
 struct NetvarsData {
-    int m_command_number=0, m_nTickBase=100;
+    int m_command_number=-1, m_nTickBase=100;
+    Player* player=nullptr;
+    float spawn_time=0;
     float m_vecViewOffset=0, m_viewPunchAngle=0;
     Vector m_aimPunchAngle, m_aimPunchAngleVel, m_vecOrigin;
 };
@@ -146,6 +150,8 @@ int main() {
     assert(prediction->m_bInPrediction); // Preserve a pre-existing engine flag.
     assert(movement_state.begins == 2 && movement_state.ends == 2);
     p.netvars_data[10].m_command_number = 10;
+    p.netvars_data[10].player = ctx->local().get();
+    p.netvars_data[10].spawn_time = ctx->player.spawn;
     ctx->player.punch.x = .02f; // Network quantization, not an actual correction.
     p.detect_prediction_error(10);
     assert(ctx->player.punch.x == 0 && !prediction->m_bPreviousAckHadErrors);

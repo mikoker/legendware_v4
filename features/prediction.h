@@ -19,7 +19,10 @@ struct ViewmodelData
 
 struct NetvarsData
 {
-	int m_command_number = 0;
+	int m_command_number = -1;
+	int weapon_handle = -1;
+	Player* player = nullptr;
+	float spawn_time = 0.0f;
 
 	int m_nTickBase = 0;
 

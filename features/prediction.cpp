@@ -85,6 +85,9 @@ void Prediction::update_data()
 
 void Prediction::store_data(crypt_ptr <CUserCmd> cmd)
 {
+	if (!cmd || cmd->command_number <= 0)
+		return;
+
 	flags = ctx->local()->m_fFlags();
 	move_type = ctx->local()->m_moveType();
 	duck_amount = ctx->local()->m_flDuckAmount();
@@ -95,14 +98,17 @@ void Prediction::store_data(crypt_ptr <CUserCmd> cmd)
 
 	auto previous_command_number = cmd->command_number - 1;
 	auto delta_tick = previous_command_number - clientstate->m_nLastCommandAck;
-	auto previous_cmd = input->GetUserCmd(previous_command_number);
+	auto previous_cmd = input ? input->GetUserCmd(previous_command_number) : nullptr;
 	auto data = crypt_ptr <NetvarsData>(&netvars_data[previous_command_number % MULTIPLAYER_BACKUP]);
+	const auto previous_matches = previous_cmd && previous_cmd->command_number == previous_command_number;
+	const auto snapshot_matches = data->m_command_number == previous_command_number &&
+		data->player == ctx->local().get() && data->spawn_time == ctx->local()->m_flSpawnTime();
 
-	if (previous_cmd && previous_cmd->predicted
+	if (previous_matches && previous_cmd->predicted
 		&& ctx->last_predicted_command == previous_cmd->command_number
 		&& previous_command_number == previous_cmd->command_number
 		&& clientstate->m_nDeltaTick == prediction->m_nPreviousStartFrame
-		&& previous_cmd->command_number == data->m_command_number)
+		&& snapshot_matches)
 	{
 		if (delta_tick - 1 >= 0)
 			restore_netvars(previous_command_number);
@@ -110,7 +116,9 @@ void Prediction::store_data(crypt_ptr <CUserCmd> cmd)
 	else
 		prediction->Update(clientstate->m_nDeltaTick, clientstate->m_nDeltaTick > 0, clientstate->m_nLastCommandAck, previous_command_number);
 
-	if (ctx->weapon() && previous_cmd->command_number == data->m_command_number)
+	if (config->rage.enable && previous_matches && snapshot_matches &&
+		ctx->weapon() && ctx->weapon()->m_iItemDefinitionIndex() == WEAPON_REVOLVER &&
+		data->weapon_handle == ctx->local()->m_hActiveWeapon().ToInt())
 		ctx->weapon()->m_flPostponeFireReadyTime() = data->m_flPostponeFireReadyTime;
 }
 
@@ -152,9 +160,15 @@ void Prediction::restore_context()
 
 void Prediction::store_netvars(int command_number)
 {
+	if (command_number <= 0)
+		return;
+
 	auto data = crypt_ptr <NetvarsData>(&netvars_data[command_number % MULTIPLAYER_BACKUP]);
 
 	data->m_command_number = command_number;
+	data->player = ctx->local().get();
+	data->spawn_time = ctx->local()->m_flSpawnTime();
+	data->weapon_handle = ctx->local()->m_hActiveWeapon().ToInt();
 	data->m_vecViewOffset = clamp(ctx->local()->m_vecViewOffset().z, 46.0f, 64.0f);
 	data->m_viewPunchAngle = ctx->local()->m_viewPunchAngle().x;
 	data->m_aimPunchAngle = ctx->local()->m_aimPunchAngle();
@@ -175,6 +189,9 @@ void Prediction::store_netvars(int command_number)
 
 void Prediction::restore_netvars(int command_number)
 {
+	if (command_number <= 0)
+		return;
+
 	if ((ctx->local()->m_fEffects() & 8) == 0
 		&& ctx->local()->m_ubEFNoInterpParity() == ctx->local()->m_ubEFNoInterpParityOld()
 		&& ctx->local()->m_vecOrigin().DistToSqr(ctx->local()->m_vecLastPredictedPosition()) < 4096.0f)
@@ -185,7 +202,8 @@ void Prediction::restore_netvars(int command_number)
 	if (!data)
 		return;
 
-	if (data->m_command_number != command_number)
+	if (data->m_command_number != command_number || data->player != ctx->local().get() ||
+		data->spawn_time != ctx->local()->m_flSpawnTime())
 		return;
 
 	if (data->m_nTickBase != ctx->local()->m_nTickBase())
@@ -214,7 +232,8 @@ void Prediction::restore_netvars(int command_number)
 	if (!config->rage.enable)
 		return;
 
-	if (!ctx->weapon())
+	if (!ctx->weapon() || ctx->weapon()->m_iItemDefinitionIndex() != WEAPON_REVOLVER ||
+		data->weapon_handle != ctx->local()->m_hActiveWeapon().ToInt())
 		return;
 
 	ctx->weapon()->m_flPostponeFireReadyTime() = data->m_flPostponeFireReadyTime;
@@ -222,12 +241,16 @@ void Prediction::restore_netvars(int command_number)
 
 void Prediction::detect_prediction_error(int command_number)
 {
+	if (command_number <= 0)
+		return;
+
 	auto data = crypt_ptr <NetvarsData>(&netvars_data[command_number % MULTIPLAYER_BACKUP]);
 
 	if (!data)
 		return;
 
-	if (data->m_command_number != command_number)
+	if (data->m_command_number != command_number || data->player != ctx->local().get() ||
+		data->spawn_time != ctx->local()->m_flSpawnTime())
 		return;
 
 	auto repredict = false;

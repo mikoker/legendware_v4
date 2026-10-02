@@ -24,6 +24,8 @@ public:
 
 	CUserCmd* GetUserCmd(int sequence_number)
 	{
+		if (!m_pCommands || sequence_number < 0)
+			return nullptr;
 		return &m_pCommands[sequence_number % MULTIPLAYER_BACKUP];
 	}
 
