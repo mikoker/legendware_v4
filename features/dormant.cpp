@@ -71,7 +71,7 @@ void Dormant_esp::start()
 		if (dormant->m_cSoundPlayers[sound.m_nSoundSource].found)
 			continue;
 
-		if (sound.m_pOrigin->IsZero())
+		if (!sound.m_pOrigin || sound.m_pOrigin->IsZero())
 			continue;
 
 		if (!valid_sound(sound))
@@ -116,9 +116,12 @@ void Dormant_esp::setup_adjust(crypt_ptr <Player> player, SndInfo_t& sound)
 	}
 	*sound.m_pOrigin = tr.fraction <= 0.97f ? tr.endpos : *sound.m_pOrigin;
 
-	m_cSoundPlayers[sound.m_nSoundSource].m_nFlags = player->m_fFlags();
-	m_cSoundPlayers[sound.m_nSoundSource].m_nFlags |= (tr.fraction < 0.50f ? FL_DUCKING : 0) | (tr.fraction < 1.0f ? FL_ONGROUND : 0);
-	m_cSoundPlayers[sound.m_nSoundSource].m_nFlags &= (tr.fraction >= 0.50f ? ~FL_DUCKING : 0) | (tr.fraction >= 1.0f ? ~FL_ONGROUND : 0);
+	auto& flags = m_cSoundPlayers[sound.m_nSoundSource].m_nFlags;
+	flags = player->m_fFlags() & ~(FL_DUCKING | FL_ONGROUND);
+	if (tr.fraction < 0.50f)
+		flags |= FL_DUCKING;
+	if (tr.fraction < 1.0f)
+		flags |= FL_ONGROUND;
 }
 
 bool Dormant_esp::adjust_sound(crypt_ptr <Player> entity)

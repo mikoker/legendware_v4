@@ -138,6 +138,8 @@ bool FakeLag::trigger_peek(crypt_ptr <CUserCmd> cmd)
 		if (player->IsDormant())
 		{
 			auto backup_abs_origin = player->GetAbsOrigin();
+			auto backup_flags = player->m_fFlags();
+			auto will_peek = false;
 
 			if (dormant->adjust_sound(player))
 			{
@@ -153,11 +155,13 @@ bool FakeLag::trigger_peek(crypt_ptr <CUserCmd> cmd)
 				ray.Init(predicted_shoot_position, player->GetAbsOrigin() + player->m_vecViewOffset());
 				enginetrace->TraceRay(ray, MASK_SHOT_HULL, &filter, &trace_prediction);
 
-				if (trace_prediction.fraction - trace.fraction > 0.5f)
-					return true;
+				will_peek = trace_prediction.fraction - trace.fraction > 0.5f;
 			}
 
 			player->set_abs_origin(backup_abs_origin);
+			player->m_fFlags() = backup_flags;
+			if (will_peek)
+				return true;
 		}
 		else
 		{
