@@ -72,7 +72,7 @@ auto ctx=&context;
 void __fastcall mock_modify(void*,void*,void*,int) {}
 struct Signatures { uintptr_t signatures[1]{ reinterpret_cast<uintptr_t>(&mock_modify) }; } signatures;
 auto signatures_manager=&signatures;
-struct Convar { int value=1; int GetInt() { return value; } void SetValue(int v) { value=v; } } convar;
+struct Convar { int value=1,sets=0; int GetInt() { return value; } void SetValue(int v) { value=v; ++sets; } } convar;
 struct Convars { Convar* convars[1]{ &convar }; } convars;
 auto convars_manager=&convars;
 using SetupBones=bool(__thiscall*)(void*,matrix3x4_t*,int,int,float);
@@ -101,6 +101,7 @@ int main() {
     player.counter=10;
     assert(hooked_setupbones(renderable,nullptr,out,2,BONE_USED_BY_HITBOX,3));
     assert(out[0].m[0][0]==42 && engine_calls==0);
+    assert(convar.sets==0 && convar.value==1); // No jiggle callbacks while scanning history.
     assert(!hooked_setupbones(renderable,nullptr,out,1,BONE_USED_BY_HITBOX,3));
     assert(!hooked_setupbones(renderable,nullptr,out,128,BONE_USED_BY_ANYTHING,3));
     assert(!hooked_setupbones(renderable,nullptr,out,128,-1,3));
