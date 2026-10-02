@@ -5,7 +5,7 @@
 
 bool __fastcall hooked_setupbones(void* ecx, void* edx, matrix3x4_t* bone_world_out, int max_bones, int bone_mask, float current_time)
 {
-	auto result = true;
+	auto result = false;
 	auto r_jiggle_bones_backup = convars_manager->convars[CONVAR_R_JIGGLE_BONES]->GetInt();
 
 	convars_manager->convars[CONVAR_R_JIGGLE_BONES]->SetValue(0);
@@ -24,8 +24,22 @@ bool __fastcall hooked_setupbones(void* ecx, void* edx, matrix3x4_t* bone_world_
 
 			if (ctx->setuping_bones)
 				result = ((SetupBones)original_setupbones)(ecx, bone_world_out, max_bones, bone_mask, current_time);
-			else if (bone_world_out)
-				memcpy(bone_world_out, player->m_CachedBoneData().Base(), player->m_CachedBoneData().Count() * sizeof(matrix3x4_t));
+			else
+			{
+				const auto count = player->m_CachedBoneData().Count();
+				const auto cache_valid = count > 0 && count <= MAXSTUDIOBONES && player->m_CachedBoneData().Base() &&
+					player->m_iMostRecentModelBoneCounter() == player->m_iModelBoneCounter() &&
+					(player->m_BoneAccessor().m_ReadableBones & bone_mask) == bone_mask;
+				if (!cache_valid)
+					result = ((SetupBones)original_setupbones)(ecx, bone_world_out, max_bones, bone_mask, current_time);
+				else if (!bone_world_out)
+					result = true;
+				else if (max_bones >= count)
+				{
+					memcpy(bone_world_out, player->m_CachedBoneData().Base(), count * sizeof(matrix3x4_t));
+					result = true;
+				}
+			}
 
 			if (previous_weapon)
 				animstate->weapon_last_bone_setup = previous_weapon.get();

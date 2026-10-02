@@ -656,7 +656,7 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 		auto success = matrix != MATRIX_VISUAL_INTERPOLATED && player->setup_bones_rebuilded(BONE_USED_BY_HITBOX, data->matrix[matrix]);
 
 		if (!success)
-			player->setup_bones(data->matrix[matrix], matrix == MATRIX_VISUAL_INTERPOLATED ? BONE_USED_BY_ANYTHING : BONE_USED_BY_HITBOX);
+			success = player->setup_bones(data->matrix[matrix], matrix == MATRIX_VISUAL_INTERPOLATED ? BONE_USED_BY_ANYTHING : BONE_USED_BY_HITBOX);
 		if (success)
 			data->matrix_ready |= 1u << matrix;
 

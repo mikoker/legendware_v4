@@ -9,7 +9,7 @@ void BuildBones::initialize(crypt_ptr <Player> player, crypt_ptr <AnimationState
 	this->matrix = matrix ? matrix : player->m_CachedBoneData().Base();
 	this->mask = mask & ~BONE_USED_BY_BONE_MERGE;
 
-	animation_layers_count = this->player->get_animation_layers_count();
+	animation_layers_count = clamp(this->player->get_animation_layers_count(), 0, 13);
 	time = this->player->m_flSimulationTime();
 
 	angles = Vector(this->player->GetAbsAngles().x, animation_state->goal_feet_yaw, this->player->GetAbsAngles().z);
@@ -30,21 +30,21 @@ void BuildBones::initialize(crypt_ptr <Player> player, crypt_ptr <AnimationState
 
 void BuildBones::setup()
 {
-	if (!studio_hdr)
+	if (!studio_hdr || !studio_hdr->m_pStudioHdr || !matrix ||
+		studio_hdr->m_pStudioHdr->numbones <= 0 || studio_hdr->m_pStudioHdr->numbones > MAXSTUDIOBONES)
 		return;
 
+	const auto backup_eflags = player->m_iEFlags();
 	player->m_iEFlags() |= EFL_SETTING_UP_BONES;
 
-	if (!*(bool*)(uintptr_t(studio_hdr->m_pStudioHdr) + 0x150) || *(int*)((uintptr_t)studio_hdr.get() + 0x4))
-		get_skeleton();
+	get_skeleton();
 
 	matrix3x4_t transform;
 
 	transform.AngleMatrix(angles, origin);
 	studio_build_matrices(transform);
 
-	player->m_iEFlags() &= ~EFL_SETTING_UP_BONES;
-	fix_bones_rotations();
+	player->m_iEFlags() = backup_eflags;
 }
 
 void BuildBones::get_skeleton()
@@ -61,12 +61,13 @@ void BuildBones::get_skeleton()
 	bone_setup->accumulate_pose(vector_bones, quaternion_bones, player->m_nSequence(), player->m_flCycle(), 1.0f, time);
 
 	int layers[13];
+	std::fill(std::begin(layers), std::end(layers), -1);
 
 	for (auto i = 0; i < animation_layers_count; ++i)
 	{
 		auto layer = crypt_ptr <AnimationLayer> (&animation_layers.get()[i]);
 
-		if (layer->m_flWeight > 0.0f && layer->m_nOrder < animation_layers_count)
+		if (layer->m_flWeight > 0.0f && layer->m_nOrder >= 0 && layer->m_nOrder < animation_layers_count)
 			layers[layer->m_nOrder] = i;
 	}
 
@@ -108,12 +109,8 @@ void BuildBones::get_skeleton()
 
 			if (count >= 0 && count < animation_layers_count)
 			{
-				auto layer = crypt_ptr <AnimationLayer> (&animation_layers.get()[i]);
-
-				alignas(16) Vector pos2[256];
-				alignas(16) Quaternion rot2[256];
-
-				bone_setup->accumulate_pose(pos2, rot2, layer->m_nSequence, layer->m_flCycle, layer->m_flWeight, time);
+				auto layer = crypt_ptr <AnimationLayer> (&animation_layers.get()[count]);
+				bone_setup->accumulate_pose(vector_bones, quaternion_bones, layer->m_nSequence, layer->m_flCycle, layer->m_flWeight, time);
 			}
 		}
 	}
@@ -210,7 +207,7 @@ void BuildBones::fix_bones_rotations()
 
 float BuildBones::get_pose_param_value(crypt_ptr <CStudioHdr> hdr, int index, float value)
 {
-	if (index < 0 || index > 24)
+	if (index < 0 || index >= 24)
 		return 0.0f;
 
 	auto pose_param = get_pose_param_desc(hdr, index);
@@ -226,7 +223,8 @@ float BuildBones::get_pose_param_value(crypt_ptr <CStudioHdr> hdr, int index, fl
 		value -= pose_param->loop * floor((value + shift) / pose_param->loop);
 	}
 
-	return (value - pose_param->start) / (pose_param->end - pose_param->start);
+	const auto span = pose_param->end - pose_param->start;
+	return fabsf(span) > FLT_EPSILON ? (value - pose_param->start) / span : 0.0f;
 }
 
 crypt_ptr <mstudioposeparamdesc_t> BuildBones::get_pose_param_desc(crypt_ptr <CStudioHdr> hdr, int index)

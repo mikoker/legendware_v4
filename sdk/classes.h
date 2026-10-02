@@ -497,7 +497,7 @@ public:
 	bool valid(bool check_team = false);
 	void StandardBlendingRules(CStudioHdr* hdr, Vector* pos, Quaternion* q, float time, int mask);
 	bool setup_bones_rebuilded(int mask, matrix3x4_t* mx);
-	void setup_bones(crypt_ptr <matrix3x4_t> matrix, int mask);
+	bool setup_bones(crypt_ptr <matrix3x4_t> matrix, int mask);
 	bool can_be_animated();
 	bool can_shoot(bool check_revolver = true, float delay = 0.0f);
 	Vector get_shoot_position();

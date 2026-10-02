@@ -38,7 +38,7 @@ void LocalAnimations::render()
 	auto backup_curtime = globals->curtime;
 
 	ctx->arti_never_wanted_to_fix_this = ctx->local()->m_fFlags() & FL_ONGROUND && engine_prediction->flags & FL_ONGROUND;
-	globals->curtime = clientstate->m_ClockDriftMgr.m_nServerTick;
+	globals->curtime = TICKS_TO_TIME(clientstate->m_ClockDriftMgr.m_nServerTick);
 
 	((void(__thiscall*)(void*, void*, int))signatures_manager->signatures[SIGNATURE_MODIFY_BONES])(ctx->local().get(), ctx->local()->m_CachedBoneData().Base(), BONE_USED_BY_ANYTHING);
 

@@ -184,6 +184,7 @@ bool Player::setup_bones_rebuilded(int mask, matrix3x4_t* mx)
 	auto hdr = get_studio_hdr().get();
 	if (!hdr
 		|| !hdr->m_pStudioHdr
+		|| !mx || hdr->m_pStudioHdr->numbones <= 0 || hdr->m_pStudioHdr->numbones > MAXSTUDIOBONES
 		|| *(bool*)(uintptr_t(hdr->m_pStudioHdr) + 0x150) && !hdr->m_pVModel)
 		return false;
 
@@ -240,13 +241,13 @@ bool Player::setup_bones_rebuilded(int mask, matrix3x4_t* mx)
 	return true;
 }
 
-void Player::setup_bones(crypt_ptr <matrix3x4_t> matrix, int mask)
+bool Player::setup_bones(crypt_ptr <matrix3x4_t> matrix, int mask)
 {
 	if (!valid())
-		return;
+		return false;
 
 	if (!force_animations_data())
-		return;
+		return false;
 
 	auto framecount = globals->framecount;
 	auto ik = m_pIK();
@@ -270,17 +271,11 @@ void Player::setup_bones(crypt_ptr <matrix3x4_t> matrix, int mask)
 
 	m_bIsHLTV() = true;
 
-	if (mask == BONE_USED_BY_ANYTHING)
-	{
-		ctx->setuping_bones = true;
-		SetupBones(matrix.get(), MAXSTUDIOBONES, mask, m_flSimulationTime());
-		ctx->setuping_bones = false;
-	}
-	else
-	{
-		build_bones->initialize(this, get_animation_state(), matrix, mask);
-		build_bones->setup();
-	}
+	// Keep the engine's overlay, bone-merge and model-specific behavior for all masks.
+	const auto backup_setuping_bones = ctx->setuping_bones;
+	ctx->setuping_bones = true;
+	const auto result = SetupBones(matrix.get(), MAXSTUDIOBONES, mask, m_flSimulationTime());
+	ctx->setuping_bones = backup_setuping_bones;
 
 	globals->framecount = framecount;
 
@@ -289,6 +284,7 @@ void Player::setup_bones(crypt_ptr <matrix3x4_t> matrix, int mask)
 	m_nAnimLODflags() = anim_lod_flags;
 	m_ClientEntEffects() = client_ent_effects;
 	m_bIsHLTV() = backup_ishltv;
+	return result;
 }
 
 bool Player::can_be_animated()
