@@ -8,13 +8,15 @@ public:
 	virtual void start();
 	virtual void set_round_start_time(float time) { m_round_start_time = time; }
 	virtual bool adjust_sound(crypt_ptr <Player> player);
-	virtual void setup_adjust(crypt_ptr <Player> player, SndInfo_t& sound);
+	virtual bool setup_adjust(crypt_ptr <Player> player, SndInfo_t& sound);
 	virtual bool valid_sound(SndInfo_t& sound);
 
 	virtual void reset()
 	{
 		m_utlvecSoundBuffer.RemoveAll();
 		m_utlCurSoundList.RemoveAll();
+		for (auto& sound_player : m_cSoundPlayers)
+			sound_player.reset();
 	}
 
 	struct SoundPlayer
@@ -23,12 +25,16 @@ public:
 		{
 			if (store_data)
 			{
+				valid = true;
+				flags_valid = true;
 				m_iReceiveTime = globals->realtime;
 				m_vecOrigin = origin;
 				m_nFlags = flags;
 			}
 			else
 			{
+				valid = false;
+				flags_valid = false;
 				m_iReceiveTime = 0.0f;
 				m_vecOrigin.Zero();
 				m_nFlags = 0;
@@ -37,11 +43,15 @@ public:
 
 		virtual void Override(SndInfo_t& sound)
 		{
+			valid = true;
+			flags_valid = true;
 			m_iReceiveTime = globals->realtime;
 			m_vecOrigin = *sound.m_pOrigin;
 		}
 
 		bool found = false;
+		bool valid = false;
+		bool flags_valid = false;
 		bool from_shared = false;
 		float m_iReceiveTime = 0.0f;
 		
