@@ -53,7 +53,7 @@ struct Player {
     Vector& m_viewPunchAngle() { return view_punch; }
     Vector& m_vecViewOffset() { return view_offset; }
 };
-struct Context { Player player; crypt_ptr<Player> local() { return &player; } } context;
+struct Context { Player player; bool prediction_bones_ready=false; crypt_ptr<Player> local() { return &player; } } context;
 auto ctx = &context;
 struct Globals { float curtime=123, frametime=.02f, intervalpertick=.015625f, realtime=10; } global_state;
 auto globals = &global_state;

@@ -125,6 +125,12 @@ public:
 
 	matrix3x4_t fake[MAXSTUDIOBONES];
 	matrix3x4_t prediction[MAXSTUDIOBONES];
+	bool prediction_bones_ready = false;
+	Player* prediction_bone_player = nullptr;
+	float prediction_bone_spawn = 0.0f;
+	const void* prediction_bone_model = nullptr;
+	int prediction_bone_count = 0;
+	Vector prediction_bone_origin;
 	matrix3x4_t back_track[65][MAXSTUDIOBONES];
 
 	vector <string> events;

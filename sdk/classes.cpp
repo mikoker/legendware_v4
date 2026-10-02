@@ -403,6 +403,10 @@ void Player::modify_shoot_position(Vector& eye_position)
 {
 	if (!this) //-V704
 		return;
+	if (!ctx->prediction_bones_ready || ctx->prediction_bone_player != this ||
+		ctx->prediction_bone_spawn != m_flSpawnTime() || ctx->prediction_bone_model != GetModel() ||
+		(ctx->prediction_bone_origin - m_vecOrigin()).LengthSqr() != 0.0f)
+		return;
 
 	auto animstate = get_animation_state();
 
@@ -414,7 +418,7 @@ void Player::modify_shoot_position(Vector& eye_position)
 
 	auto head_bone = reinterpret_cast <int(__thiscall*)(void*, const char*)> (signatures_manager->signatures[SIGNATURE_LOOKUP_BONE])(this, crypt_str("head_0"));
 
-	if (head_bone == -1)
+	if (head_bone < 0 || head_bone >= MAXSTUDIOBONES || head_bone >= ctx->prediction_bone_count)
 		return;
 
 	auto head_position = Vector(ctx->prediction[head_bone][0][3], ctx->prediction[head_bone][1][3], ctx->prediction[head_bone][2][3] + 1.7f);

@@ -56,7 +56,10 @@ void LocalAnimations::render()
 
 void LocalAnimations::run(crypt_ptr <CUserCmd> cmd, bool send_packet) //-V813
 {
-	if (!ctx->local()->valid())
+	if (!ctx->local() || !ctx->local()->valid())
+		return;
+
+	if (ctx->local()->get_animation_layers_count() != 13 || !ctx->local()->get_animation_layer())
 		return;
 
 	if (send_packet)
@@ -108,6 +111,10 @@ void LocalAnimations::run(crypt_ptr <CUserCmd> cmd, bool send_packet) //-V813
 
 	memcpy(pose_parameters_shoot, ctx->local()->m_flPoseParameters(), 24 * sizeof(float)); //-V512
 	memcpy(layers_shoot, ctx->local()->get_animation_layer().get(), ctx->local()->get_animation_layers_count() * sizeof(AnimationLayer)); //-V512
+	shoot_player = ctx->local().get();
+	shoot_spawn = ctx->local()->m_flSpawnTime();
+	shoot_model = ctx->local()->GetModel();
+	shoot_layer_count = ctx->local()->get_animation_layers_count();
 
 	if (!send_packet)
 	{

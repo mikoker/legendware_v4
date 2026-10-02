@@ -8,6 +8,7 @@
 
 void Prediction::start(crypt_ptr <CUserCmd> cmd)
 {
+	ctx->prediction_bones_ready = false;
 	cmd->viewangles = math::normalize_angles(cmd->viewangles);
 
 	if (exploits->charging)
@@ -56,12 +57,21 @@ void Prediction::start(crypt_ptr <CUserCmd> cmd)
 
 void Prediction::update_data()
 {
+	ctx->prediction_bones_ready = false;
+	if (!ctx->local() || !ctx->local()->valid() || !ctx->weapon())
+		return;
+
 	ctx->weapon()->update_accuracy_penalty();
 
 	ctx->spread = ctx->weapon()->get_spread();
 	ctx->inaccuracy = ctx->weapon()->get_inaccuracy();
 
 	store_viewmodel();
+	ctx->shoot_position = ctx->local()->m_vecOrigin() + ctx->local()->m_vecViewOffset();
+	const auto layer_count = ctx->local()->get_animation_layers_count();
+	if (layer_count <= 0 || layer_count > 13 || !ctx->local()->get_animation_layer())
+		return;
+	const auto backup_abs_angles = ctx->local()->GetAbsAngles();
 
 	float backup_pose_parameters[24];
 	memcpy(backup_pose_parameters, ctx->local()->m_flPoseParameters(), 24 * sizeof(float)); //-V512
@@ -69,16 +79,32 @@ void Prediction::update_data()
 	AnimationLayer backup_layers[13];
 	memcpy(backup_layers, ctx->local()->get_animation_layer().get(), ctx->local()->get_animation_layers_count() * sizeof(AnimationLayer));
 
-	memcpy(ctx->local()->m_flPoseParameters(), local_animations->pose_parameters_shoot, 24 * sizeof(float));
-	memcpy(ctx->local()->get_animation_layer().get(), local_animations->layers_shoot, ctx->local()->get_animation_layers_count() * sizeof(AnimationLayer));
+	if (local_animations->has_shoot_pose(ctx->local().get()))
+	{
+		memcpy(ctx->local()->m_flPoseParameters(), local_animations->pose_parameters_shoot, 24 * sizeof(float));
+		memcpy(ctx->local()->get_animation_layer().get(), local_animations->layers_shoot, layer_count * sizeof(AnimationLayer));
+	}
 
 	ctx->local()->m_flPoseParameters()[12] = 0.5f;
 
 	ctx->local()->set_abs_angles(Vector(0.0f, 0.0f, 0.0f));
-	ctx->local()->setup_bones(ctx->prediction, BONE_USED_BY_HITBOX);
+	ctx->prediction_bones_ready = ctx->local()->setup_bones(ctx->prediction, BONE_USED_BY_HITBOX);
+	if (ctx->prediction_bones_ready)
+	{
+		ctx->prediction_bone_player = ctx->local().get();
+		ctx->prediction_bone_spawn = ctx->local()->m_flSpawnTime();
+		ctx->prediction_bone_model = ctx->local()->GetModel();
+		ctx->prediction_bone_count = ctx->local()->m_CachedBoneData().Count();
+		ctx->prediction_bone_origin = ctx->local()->m_vecOrigin();
+	}
 
 	memcpy(ctx->local()->m_flPoseParameters(), backup_pose_parameters, 24 * sizeof(float)); //-V512
 	memcpy(ctx->local()->get_animation_layer().get(), backup_layers, ctx->local()->get_animation_layers_count() * sizeof(AnimationLayer));
+	ctx->local()->set_abs_angles(backup_abs_angles);
+	ctx->local()->m_BoneAccessor().m_ReadableBones = 0;
+	ctx->local()->m_BoneAccessor().m_WritableBones = 0;
+	ctx->local()->m_iMostRecentModelBoneCounter() = 0;
+	ctx->local()->m_flLastBoneSetupTime() = -FLT_MAX;
 
 	ctx->shoot_position = ctx->local()->get_shoot_position();
 }
