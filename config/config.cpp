@@ -55,6 +55,14 @@ void Config::initialize()
 			add_item(&rage.weapon[i].safe_hitboxes, std::to_string(i) + "rage.weapon.safe_hitboxes", ITEM_INT_ARRAY, 6);
 			add_item(&rage.weapon[i].static_point_scale, std::to_string(i) + "rage.weapon.static_point_scale", ITEM_BOOL);
 		}
+		// Defaults are applied once; loading a configuration can override them.
+		auto& taser = rage.weapon[WEAPON_CONFIG_TASER];
+		taser.hit_chance = 75;
+		taser.double_tap_hit_chance = 75;
+		taser.minimum_damage = 100;
+		taser.body_aim = 1;
+		std::fill(taser.hitboxes.begin(), taser.hitboxes.end(), 1);
+		std::fill(taser.safe_hitboxes.begin(), taser.safe_hitboxes.end(), 2);
 	}
 
 	//legit

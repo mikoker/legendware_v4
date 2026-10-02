@@ -34,18 +34,6 @@ void Aim::run(crypt_ptr <CUserCmd> cmd) //-V813
 
 	if (ctx->weapon_config == WEAPON_CONFIG_INVALID)
 		return;
-	else if (ctx->weapon_config == WEAPON_CONFIG_TASER)
-	{
-		config->rage.weapon[WEAPON_CONFIG_TASER].hit_chance = 75;
-		config->rage.weapon[WEAPON_CONFIG_TASER].minimum_damage = 100;
-		config->rage.weapon[WEAPON_CONFIG_TASER].body_aim = 1;
-
-		for (auto i = 0; i < 6; ++i)
-		{
-			config->rage.weapon[WEAPON_CONFIG_TASER].hitboxes[i] = true;
-			config->rage.weapon[WEAPON_CONFIG_TASER].safe_hitboxes[i] = 2;
-		}
-	}
 
 	jump_scout = ctx->weapon()->m_iItemDefinitionIndex() == WEAPON_SSG08 && !(engine_prediction->flags & FL_ONGROUND) && !(ctx->local()->m_fFlags() & FL_ONGROUND) && engine_prediction->velocity.Length2D() < 5.0f && abs(engine_prediction->velocity.z) < 5.0f;
 
@@ -1389,6 +1377,12 @@ float Aim::get_point_accuracy(const Vector& angle, int matrix, int hitbox_index,
 
 bool Aim::is_hit_chanced(float hit_chance, const Vector& angle, int matrix, int hitbox_index, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, bool check_damage, int damage)
 {
+	if (!std::isfinite(hit_chance))
+		return false;
+	hit_chance = clamp(hit_chance, 0.0f, 100.0f);
+	const auto needed_hits = (int)ceil((double)hit_chance * 256.0 / 100.0);
+	if (!needed_hits)
+		return true;
 	if (convars_manager->convars[CONVAR_WEAPON_ACCURACY_NOSPREAD]->GetBool())
 		return true;
 
@@ -1397,7 +1391,6 @@ bool Aim::is_hit_chanced(float hit_chance, const Vector& angle, int matrix, int 
 	Vector forward, right, up;
 	math::angle_vectors(angle, &forward, &right, &up);
 
-	auto needed_hits = (int)(hit_chance * 2.56f);
 	auto allowed_misses = 256 - needed_hits;
 	auto weapon_data = ctx->weapon_data();
 	for (auto i = 0; i < 256; ++i)
@@ -1421,7 +1414,7 @@ bool Aim::is_hit_chanced(float hit_chance, const Vector& angle, int matrix, int 
 		if (hits >= needed_hits)
 			return true;
 
-		if (i - hits > allowed_misses)
+		if (i + 1 - hits > allowed_misses)
 			return false;
 	}
 
