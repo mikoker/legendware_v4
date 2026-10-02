@@ -57,7 +57,7 @@ size_t module_size = 0;
 LONG CALLBACK exception_handler(EXCEPTION_POINTERS* exception_pointers)
 {
 	if (exception_pointers->ExceptionRecord->ExceptionCode == STATUS_HEAP_CORRUPTION)
-		return EXCEPTION_CONTINUE_EXECUTION;
+		return EXCEPTION_CONTINUE_SEARCH;
 
 	if ((uintptr_t)exception_pointers->ExceptionRecord->ExceptionAddress < (uintptr_t)base_address || (uintptr_t)exception_pointers->ExceptionRecord->ExceptionAddress > (uintptr_t)base_address + module_size)
 		return EXCEPTION_CONTINUE_SEARCH;
