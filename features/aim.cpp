@@ -1491,11 +1491,11 @@ Vector Aim::get_spread(int seed)
 bool Aim::hitbox_intersection(int hitbox_index, int matrix, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, const Vector& end, float margin, const Vector* start) //-V813
 {
 	const auto& ray_start = start ? *start : ctx->shoot_position;
-	if (matrix < 0 || matrix >= MATRIX_MAX || !(data->matrix_ready & (1u << matrix)))
+	if (!data || !data->matches_player(player.get()) || matrix < 0 || matrix >= MATRIX_MAX || !(data->matrix_ready & (1u << matrix)))
 		return false;
 	auto hitbox = player->get_hitbox(hitbox_index);
 
-	if (!hitbox)
+	if (!hitbox || hitbox->bone < 0 || hitbox->bone >= data->bone_count || hitbox->bone >= MAXSTUDIOBONES)
 		return false;
 
 	if (hitbox->radius > 0.0f)

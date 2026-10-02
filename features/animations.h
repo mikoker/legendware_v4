@@ -51,6 +51,9 @@ class AnimationData
 {
 public:
 	int i;
+	Player* recorded_player = nullptr;
+	float spawn_time = 0.0f;
+	const void* recorded_model = nullptr;
 
 	matrix3x4_t matrix[MATRIX_MAX][MAXSTUDIOBONES];
 	unsigned int matrix_ready = 0;
@@ -173,6 +176,9 @@ public:
 	virtual void store(crypt_ptr <Player> player, bool store_extra = true)
 	{
 		i = player->EntIndex();
+		recorded_player = player.get();
+		spawn_time = player->m_flSpawnTime();
+		recorded_model = player->GetModel();
 
 		if (store_extra)
 		{
@@ -228,12 +234,17 @@ public:
 		animation_state = *player->get_animation_state().get();
 	}
 
+	bool matches_player(Player* player) const
+	{
+		return player && recorded_player == player && spawn_time == player->m_flSpawnTime() && recorded_model == player->GetModel();
+	}
+
 	virtual bool can_apply(int matrix_index = MATRIX_MAIN, bool backup = false)
 	{
 		if (i < 1 || i > 64)
 			return false;
 		auto player = crypt_ptr <Player> ((Player*)entitylist->GetClientEntity(i));
-		if (!player || !player->valid())
+		if (!player || !player->valid() || !matches_player(player.get()))
 			return false;
 		if (matrix_index < MATRIX_MAIN || matrix_index >= MATRIX_MAX || bone_count < 0 || bone_count > MAXSTUDIOBONES ||
 			bone_count > player->m_CachedBoneData().NumAllocated() ||
@@ -248,7 +259,7 @@ public:
 		if (i < 1 || i > 64)
 			return false;
 		auto player = crypt_ptr <Player> ((Player*)entitylist->GetClientEntity(i));
-		if (!player || !player->valid())
+		if (!player || !player->valid() || !matches_player(player.get()))
 		{
 			if (backup)
 				historical_bone_cache[i] = {};
@@ -300,7 +311,7 @@ public:
 		player->m_BoneAccessor().m_ReadableBones = backup ? readable_bones : matrix_mask[matrix_index];
 		player->m_BoneAccessor().m_WritableBones = backup ? writable_bones : matrix_mask[matrix_index];
 		player->m_flLastBoneSetupTime() = backup ? last_bone_setup_time : simulation_time;
-		historical_bone_cache[i] = backup ? previous_bone_cache : HistoricalBoneCache{ player.get(), matrix_mask[matrix_index] };
+		historical_bone_cache[i] = backup ? previous_bone_cache : HistoricalBoneCache{ player.get(), matrix_mask[matrix_index], spawn_time, recorded_model };
 		return true;
 	}
 
@@ -308,7 +319,7 @@ public:
 	{
 		auto player = crypt_ptr <Player> ((Player*)entitylist->GetClientEntity(i));
 
-		if (!player->valid())
+		if (!player || !player->valid() || !matches_player(player.get()))
 			return false;
 
 		if (invalid)
@@ -392,6 +403,7 @@ public:
 	float goal_feet_yaw;
 	AnimationState animation_state;
 	Player* animation_player;
+	const void* animation_model;
 	float animation_spawn_time;
 	bool animation_initialized;
 
@@ -410,6 +422,7 @@ public:
 		goal_feet_yaw = 0.0f;
 		animation_state = AnimationState();
 		animation_player = nullptr;
+		animation_model = nullptr;
 		animation_spawn_time = 0.0f;
 		animation_initialized = false;
 	}

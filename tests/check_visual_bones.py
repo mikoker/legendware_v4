@@ -35,6 +35,7 @@ uintptr_t original_updateclientsideanimation=reinterpret_cast<uintptr_t>(&mock_u
 int main() {
     Player local,player;ctx->player=&local;entities.target=&player;
     auto& front=animations->animation_data[1].emplace_back(1);
+    front.store(&player,false);
     front.bone_count=2;
     auto data=crypt_ptr<AnimationData>(&front);
 """ + builder + r"""
@@ -62,7 +63,7 @@ int main() {
     assert(front.matrix[MATRIX_VISUAL_INTERPOLATED][0].m[0][3]==15);
     assert(front.matrix[MATRIX_VISUAL][0].m[0][3]==10);
     // A render hook cannot overwrite an active historical transaction.
-    historical_bone_cache[1]={&player,BONE_USED_BY_HITBOX};
+    historical_bone_cache[1]={&player,BONE_USED_BY_HITBOX,player.spawn,player.model};
     player.bones.data[0].m[0][3]=42;front.matrix_ready=0;
     hooked_updateclientsideanimation(&player,nullptr);
     assert(update_calls==1 && player.bones.data[0].m[0][3]==42);

@@ -25,9 +25,11 @@ void __fastcall hooked_updateclientsideanimation(Player* player, void* edx)
 
 		if (front->dormant)
 			return;
-		if (historical_bone_cache[player->EntIndex()].player == player)
+		if (historical_bone_cache[player->EntIndex()].player == player &&
+			historical_bone_cache[player->EntIndex()].spawn_time == player->m_flSpawnTime() &&
+			historical_bone_cache[player->EntIndex()].model == player->GetModel())
 			return;
-		if (!(front->matrix_ready & (1u << MATRIX_VISUAL_INTERPOLATED)) || front->bone_count <= 0 ||
+		if (!front->matches_player(player) || !(front->matrix_ready & (1u << MATRIX_VISUAL_INTERPOLATED)) || front->bone_count <= 0 ||
 			front->bone_count > MAXSTUDIOBONES || !player->m_CachedBoneData().Base() ||
 			front->bone_count > player->m_CachedBoneData().NumAllocated())
 			return ((UpdateClientSideAnimation)original_updateclientsideanimation)(player);

@@ -6,6 +6,8 @@ struct HistoricalBoneCache
 {
 	const void* player = nullptr;
 	int mask = 0;
+	float spawn_time = 0.0f;
+	const void* model = nullptr;
 };
 
 inline HistoricalBoneCache historical_bone_cache[65];

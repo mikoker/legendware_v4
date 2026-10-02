@@ -106,7 +106,7 @@ void Events::FireGameEvent(IGameEvent* event)
 				current_shot->last_impact = position;
 				auto player = crypt_ptr <Player>((Player*)entitylist->GetClientEntity(current_shot->data.i));
 
-				if (player && player->valid())
+				if (player && player->valid() && current_shot->data.matches_player(player.get()))
 				{
 					auto hitbox = player->get_hitbox(current_shot->hitbox);
 					current_shot->candidate_core_supported = hitbox && hitbox->radius > 1.0f;
@@ -266,7 +266,9 @@ void Events::FireGameEvent(IGameEvent* event)
 					if (hitgroup != current_shot->hitgroup)
 						current_shot->hurt_fake = true;
 
-					ctx->damage_marker.emplace_front(DamageMarker(damage, globals->curtime, player->get_hitbox_position(get_hitbox(hitgroup), current_shot->data.matrix[MATRIX_MAIN]), config->visuals.world.damage_marker_custom_color ? Color(config->visuals.world.damage_marker_color) : (hitgroup == HITGROUP_HEAD ? Color::Red : Color::White)));
+					const auto marker_position = current_shot->data.matches_player(player.get()) ?
+						player->get_hitbox_position(get_hitbox(hitgroup), current_shot->data.matrix[MATRIX_MAIN]) : current_shot->shot_info.aim_point;
+					ctx->damage_marker.emplace_front(DamageMarker(damage, globals->curtime, marker_position, config->visuals.world.damage_marker_custom_color ? Color(config->visuals.world.damage_marker_color) : (hitgroup == HITGROUP_HEAD ? Color::Red : Color::White)));
 				}
 				else
 					ctx->damage_marker.emplace_front(DamageMarker(damage, globals->curtime, player->get_hitbox_position(get_hitbox(hitgroup), player->m_CachedBoneData().Base()), config->visuals.world.damage_marker_custom_color ? Color(config->visuals.world.damage_marker_color) : (hitgroup == HITGROUP_HEAD ? Color::Red : Color::White)));

@@ -24,7 +24,8 @@ bool __fastcall hooked_setupbones(void* ecx, void* edx, matrix3x4_t* bone_world_
 				animstate->weapon_last_bone_setup = animstate->weapon;
 
 			const auto index = player->EntIndex();
-			const auto frozen = index >= 1 && index <= 64 && historical_bone_cache[index].player == player.get();
+			const auto frozen = index >= 1 && index <= 64 && historical_bone_cache[index].player == player.get() &&
+				historical_bone_cache[index].spawn_time == player->m_flSpawnTime() && historical_bone_cache[index].model == player->GetModel();
 			if (frozen)
 			{
 				const auto count = player->m_CachedBoneData().Count();

@@ -40,7 +40,9 @@ struct Bones {
 };
 struct Player {
     int prefix=0; int index=1; bool alive=true; int flags=0,tickbase=100;
-    float simtime=2,oldsimtime=1,duck=0,lby=0,collisiontime=0,collisionorigin=0,lastsetup=3;
+    float simtime=2,oldsimtime=1,duck=0,lby=0,collisiontime=0,collisionorigin=0,lastsetup=3,spawn=1;
+    const void* model=reinterpret_cast<void*>(1);
+    float m_flSpawnTime() { return spawn; } const void* GetModel() { return model; }
     uint32_t recent=4,counter=9; Vector eyes,absangles,velocity,origin,absorigin;
     Bones bones; BoneAccessor accessor; AnimationLayer layers[13]{}; AnimationState anim; ICollideable collision;
     bool valid() { return alive; } int EntIndex() { return index; }
@@ -86,6 +88,7 @@ int main() {
     player.bones.data[0].m[0][0]=99;
     AnimationData backup(&player);
     AnimationData record(1);
+    record.store(&player,false);
     record.bone_count=2;record.simulation_time=1;
     record.matrix_ready=1u<<MATRIX_MAIN;
     record.matrix_mask[MATRIX_MAIN]=BONE_USED_BY_HITBOX;
@@ -141,6 +144,14 @@ int main() {
     player.bones.capacity=1;
     assert(!backup.apply(MATRIX_MAIN,true));
     assert(historical_bone_cache[1].player==nullptr && player.accessor.m_ReadableBones==0);
+    player.bones.capacity=128;
+    player.spawn=2;
+    assert(!record.can_apply() && !record.apply());
+    player.spawn=1;player.model=reinterpret_cast<void*>(2);
+    assert(!record.can_apply() && !record.apply());
+    player.model=reinterpret_cast<void*>(1);
+    Player replacement;entities.target=&replacement;
+    assert(!record.can_apply() && !record.apply());
 }
 """
 with tempfile.TemporaryDirectory() as tmp:

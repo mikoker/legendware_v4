@@ -249,7 +249,7 @@ void __fastcall hooked_drawmodelexecute(IVModelRender* ecx, void* edx, IMatRende
 	{
 		for (auto& record : animations->animation_data[info.entity_index])
 		{
-			if (record.invalid || record.dormant || !(record.matrix_ready & (1u << MATRIX_VISUAL)) ||
+			if (!record.matches_player(player.get()) || record.invalid || record.dormant || !(record.matrix_ready & (1u << MATRIX_VISUAL)) ||
 				record.simulation_time == player->m_flSimulationTime())
 				continue;
 

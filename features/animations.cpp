@@ -49,6 +49,16 @@ void Animations::run()
 			continue;
 		}
 
+		if (player_data[i].animation_initialized &&
+			(player_data[i].animation_player != player.get() || player_data[i].animation_spawn_time != player->m_flSpawnTime() ||
+				player_data[i].animation_model != player->GetModel()))
+		{
+			animation_data[i].clear();
+			player_data[i].reset();
+			resolver->reset(i);
+			historical_bone_cache[i] = {};
+		}
+
 		auto layers_updated = false;
 		auto alive_loop_layer = player->get_animation_layer(11);
 
@@ -140,10 +150,12 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 	auto state_slot = (AnimationState**)((uintptr_t)player.get() + 0x9960);
 	auto entity_animation_state = *state_slot;
 
-	if (!state_data.animation_initialized || state_data.animation_player != player.get() || state_data.animation_spawn_time != player->m_flSpawnTime())
+	if (!state_data.animation_initialized || state_data.animation_player != player.get() || state_data.animation_spawn_time != player->m_flSpawnTime() ||
+		state_data.animation_model != player->GetModel())
 	{
 		state_data.animation_state = *entity_animation_state;
 		state_data.animation_player = player.get();
+		state_data.animation_model = player->GetModel();
 		state_data.animation_spawn_time = player->m_flSpawnTime();
 		state_data.animation_initialized = true;
 	}

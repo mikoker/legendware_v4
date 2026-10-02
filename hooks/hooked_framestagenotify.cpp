@@ -365,18 +365,20 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 				else
 				{
 					std::vector<std::string> additional;
+					auto shot_player = (Player*)entitylist->GetClientEntity(current_shot->data.i);
+					const auto same_target = current_shot->data.matches_player(shot_player);
 
 					if (current_shot->hurt)
 					{
 						current_shot->shot_info.result = crypt_str("Hit");
 						current_shot->outcome = SHOT_OUTCOME_HIT;
-						if (current_shot->resolver_eligible && current_shot->expected_bullets == 1 && !current_shot->hurt_fake && !current_shot->ambiguous && !current_shot->enemy_death &&
+						if (same_target && current_shot->resolver_eligible && current_shot->expected_bullets == 1 && !current_shot->hurt_fake && !current_shot->ambiguous && !current_shot->enemy_death &&
 							current_shot->selected_candidate_hit && current_shot->alternative_candidate_mask == 0)
 							resolver->record_hit(current_shot->index, current_shot->data.resolver);
 					}
 					else if (!current_shot->local_death && !current_shot->enemy_death)
 					{
-						auto record_valid = !current_shot->data.invalid && current_shot->data.network.valid;
+						auto record_valid = same_target && !current_shot->data.invalid && current_shot->data.network.valid;
 						auto candidate_mismatch = record_valid && current_shot->resolver_eligible && !current_shot->ambiguous &&
 							current_shot->expected_bullets == 1 && current_shot->impact_count > 0 &&
 							!current_shot->occlusion && current_shot->selected_candidate_hit && current_shot->candidate_core_supported;
