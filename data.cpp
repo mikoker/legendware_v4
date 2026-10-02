@@ -193,7 +193,6 @@ void signatures_initialize()
 	signatures_manager->signatures[SIGNATURE_IMGUTL_READ_JPEG_AS_RGBA] = signatures_manager->find_signature(crypt_str("client.dll"), crypt_str("55 8B EC 81 EC ? ? ? ? 53 56 57 68 ? ? ? ? 51 89 55 E0"));
 	signatures_manager->signatures[SIGNATURE_IMGUTL_READ_TGA_AS_RGBA] = signatures_manager->find_signature(crypt_str("client.dll"), crypt_str("55 8B EC 83 EC ? 56 68 ? ? ? ? 51 89 55 FC E8 ? ? ? ? 8B F0 83 C4 ? 85 F6"));
 	signatures_manager->signatures[SIGNATURE_IMGUTL_READ_VTF_AS_RGBA] = signatures_manager->find_signature(crypt_str("client.dll"), crypt_str("55 8B EC 83 EC ? 83 65 ? ? 53 56 57 8B F1 C7 45 ? ? ? ? ? 8B 0D ? ? ? ? 8B DA"));
-	signatures_manager->signatures[SIGNATURE_SHUTDOWN] = signatures_manager->find_signature(crypt_str("client.dll"), crypt_str("56 57 8B F9 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B"));
 	signatures_manager->signatures[SIGNATURE_RETURN_TO_CLAMPBONESINBBOX] = signatures_manager->find_signature(crypt_str("client.dll"), crypt_str("F3 0F 10 7C 24 ?? F3 0F 10 54 24 ?? 0F 28 CF"));
 }
 

@@ -147,7 +147,6 @@ void hooks_initialize()
 
 	//create_hook.get()((LPVOID)signatures_manager->follow_rel32(signatures_manager->find_signature("client.dll", "E8 ? ? ? ? A1 ? ? ? ? 6A 30"),1), (LPVOID)sub_107198F0, (LPVOID*)&original_test);
 
-	create_hook.get()((LPVOID)signatures_manager->signatures[SIGNATURE_SHUTDOWN], (LPVOID)hooked_shutdown, nullptr); //-V206 //-V114
 
 	{
 		DWORD old = 0;

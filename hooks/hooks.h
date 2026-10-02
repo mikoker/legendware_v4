@@ -229,5 +229,3 @@ void __cdecl hooked_enforce_competitive_cvar(const char* cvar_name, float a2, fl
 
 
 
-using Shutdown = void(*)(void*);
-void __fastcall hooked_shutdown(void* ecx, void* edx);

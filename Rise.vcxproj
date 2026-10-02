@@ -115,7 +115,6 @@
     <ClCompile Include="hooks\hooked_setupbones.cpp" />
     <ClCompile Include="hooks\hooked_shouldcollide.cpp" />
     <ClCompile Include="hooks\hooked_shouldskipanimationframe.cpp" />
-    <ClCompile Include="hooks\hooked_shutdown.cpp" />
     <ClCompile Include="hooks\hooked_spawnsmokeeffect.cpp" />
     <ClCompile Include="hooks\hooked_spotted.cpp" />
     <ClCompile Include="hooks\hooked_standardblendingrules.cpp" />

@@ -368,7 +368,6 @@
     <ClCompile Include="hooks\hooked_get_unverified_file_hashes.cpp" />
     <ClCompile Include="hooks\hooked_enforce_competitive_cvar.cpp" />
     <ClCompile Include="sdk\ImageLoader.cpp" />
-    <ClCompile Include="hooks\hooked_shutdown.cpp" />
     <ClCompile Include="new_threads.cpp" />
   </ItemGroup>
   <ItemGroup>
