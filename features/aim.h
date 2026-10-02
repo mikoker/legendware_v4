@@ -236,6 +236,7 @@ struct Shot
 	int command_number = 0;
 	int packet_command_number = 0;
 	int tickcount = 0;
+	int sent_tickcount = -1;
 	int event_tickcount = 0;
 	int last_event_tickcount = 0;
 	unsigned int fire_sequence = 0;
@@ -262,7 +263,25 @@ struct Shot
 
 	bool matches_weapon(const char* weapon) const
 	{
-		return weapon && !weapon_name.empty() && weapon_name == weapon;
+		if (!weapon || weapon_name.empty())
+			return false;
+		auto saved_weapon = weapon_name.c_str();
+		if (strncmp(saved_weapon, "weapon_", 7) == 0)
+			saved_weapon += 7;
+		if (strncmp(weapon, "weapon_", 7) == 0)
+			weapon += 7;
+		return *saved_weapon && strcmp(saved_weapon, weapon) == 0;
+	}
+
+	bool accepts_event(int tick, int max_age) const
+	{
+		const auto age = (long long)tick - event_clock();
+		return outgoing && !end && state >= SHOT_SENT && age >= 0 && age <= max_age;
+	}
+
+	int event_clock() const
+	{
+		return outgoing && sent_tickcount >= 0 ? sent_tickcount : tickcount;
 	}
 
 	bool events_settled(int tick) const
@@ -327,6 +346,8 @@ public:
 	virtual void commit_shot(crypt_ptr <CUserCmd> cmd);
 	virtual void mark_shots_sent(crypt_ptr <CUserCmd> cmd);
 	virtual crypt_ptr<Shot> find_impact_shot(unsigned int fire_sequence);
+	virtual crypt_ptr<Shot> find_fire_shot(const char* weapon, int tick, int max_age);
+	virtual crypt_ptr<Shot> find_hurt_shot(int index, const char* weapon, int tick, int max_age, unsigned int fire_sequence);
 
 	virtual float get_point_accuracy(const Vector& angle, int matrix, int hitbox_index, float spread, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, bool debug  =false);
 	virtual bool is_hit_chanced(float hit_chance, const Vector& angle, int matrix, int hitbox_index, crypt_ptr <Player> player, crypt_ptr <AnimationData> data, bool check_damage = false, int damage = 1);

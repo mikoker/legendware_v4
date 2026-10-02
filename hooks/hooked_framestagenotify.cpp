@@ -335,7 +335,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 					current_shot = shot;
 					break;
 				}
-				else if (globals->tickcount - engine_prediction->latency - 16 > shot->tickcount)
+				else if ((long long)globals->tickcount - shot->event_clock() > max(engine_prediction->latency + 16, 16))
 				{
 					current_shot = shot;
 
@@ -354,7 +354,7 @@ void __stdcall hooked_framestagenotify(ClientFrameStage_t stage)
 			{
 				bullet_tracer->pushImpactInfo({ globals->curtime, current_shot->shoot_position, current_shot->shot_info.aim_point });
 
-				if (current_shot->latency)
+				if (current_shot->latency && !current_shot->hurt)
 				{
 					if (config->misc.logs[LOGS_MISSES])
 						logs->add(crypt_str("Missed shot due to unregistered"), Color(config->misc.logs_color[LOGS_MISSES]), crypt_str("[ MISS ] "));

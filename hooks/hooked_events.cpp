@@ -45,25 +45,8 @@ void Events::FireGameEvent(IGameEvent* event)
 		if (user == engine->GetLocalPlayer())
 		{
 			++latest_fire_sequence;
-			crypt_ptr <Shot> current_shot;
-
-			for (auto& shot : shots)
-			{
-				if (shot.state != SHOT_SENT || shot.end || !shot.outgoing || !shot.matches_weapon(event->GetString(crypt_str("weapon")).c_str()))
-					continue;
-
-				if (!current_shot)
-				{
-					current_shot = &shot;
-					continue;
-				}
-
-				if (shot.packet_command_number == current_shot->packet_command_number)
-				{
-					shot.ambiguous = true;
-					current_shot->ambiguous = true;
-				}
-			}
+			auto current_shot = aim->find_fire_shot(event->GetString(crypt_str("weapon")).c_str(), globals->tickcount,
+				max(engine_prediction->latency + 16, 16));
 
 			if (current_shot)
 			{
@@ -71,7 +54,7 @@ void Events::FireGameEvent(IGameEvent* event)
 				current_shot->event_tickcount = globals->tickcount;
 				current_shot->last_event_tickcount = globals->tickcount;
 				current_shot->fire_sequence = latest_fire_sequence;
-				current_shot->state = SHOT_FIRED;
+				current_shot->state = current_shot->hurt ? SHOT_HURT : SHOT_FIRED;
 			}
 		}
 	}
@@ -216,40 +199,8 @@ void Events::FireGameEvent(IGameEvent* event)
 			auto hitgroup_name = get_hitgroup_name(hitgroup);
 			auto damage = event->GetInt(crypt_str("dmg_health"));
 
-			crypt_ptr <Shot> current_shot;
-
-			for (auto shot = shots.rbegin(); shot != shots.rend(); ++shot)
-			{
-				if (!shot->start || shot->end || shot->state < SHOT_FIRED || !shot->impacts || (shot->hurt && shot->expected_bullets == 1))
-					continue;
-
-				if (shot->index != userid_id || !shot->matches_weapon(event->GetString(crypt_str("weapon")).c_str()))
-					continue;
-
-				if (!current_shot)
-				{
-					current_shot = &*shot;
-					continue;
-				}
-
-				shot->ambiguous = true;
-				current_shot->ambiguous = true;
-			}
-
-			if (!current_shot)
-			{
-				for (auto& shot : shots)
-				{
-					if (!shot.start || shot.end || shot.state < SHOT_FIRED || shot.index != userid_id || (shot.hurt && shot.expected_bullets == 1))
-						continue;
-					if (!shot.matches_weapon(event->GetString(crypt_str("weapon")).c_str()))
-						continue;
-
-					shot.ambiguous = true;
-					current_shot = &shot;
-					break;
-				}
-			}
+			auto current_shot = aim->find_hurt_shot(userid_id, event->GetString(crypt_str("weapon")).c_str(), globals->tickcount,
+				max(engine_prediction->latency + 16, 16), latest_fire_sequence);
 
 			auto player = crypt_ptr <Player>((Player*)entitylist->GetClientEntity(userid_id));
 
@@ -258,6 +209,10 @@ void Events::FireGameEvent(IGameEvent* event)
 				if (current_shot && current_shot->player.get() == player.get())
 				{
 					current_shot->hurt = true;
+					if (!current_shot->start)
+						current_shot->event_tickcount = globals->tickcount;
+					current_shot->start = true;
+					current_shot->latency = false;
 					current_shot->last_event_tickcount = globals->tickcount;
 					current_shot->state = SHOT_HURT;
 					current_shot->shot_info.server_hitbox = hitgroup_name;

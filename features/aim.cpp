@@ -627,8 +627,49 @@ void Aim::mark_shots_sent(crypt_ptr <CUserCmd> cmd)
 			continue;
 
 		shot.outgoing = true;
+		shot.sent_tickcount = globals->tickcount;
 		shot.packet_command_number = cmd->command_number;
 	}
+}
+
+crypt_ptr<Shot> Aim::find_fire_shot(const char* weapon, int tick, int max_age)
+{
+	crypt_ptr<Shot> match;
+	for (auto& shot : shots)
+	{
+		if (!shot.accepts_event(tick, max_age) || shot.fire_sequence || !shot.matches_weapon(weapon) ||
+			(shot.state != SHOT_SENT && !shot.hurt))
+			continue;
+		if (!match)
+			match = &shot;
+		else if (shot.packet_command_number == match->packet_command_number)
+		{
+			shot.ambiguous = true;
+			match->ambiguous = true;
+		}
+	}
+	return match;
+}
+
+crypt_ptr<Shot> Aim::find_hurt_shot(int index, const char* weapon, int tick, int max_age, unsigned int fire_sequence)
+{
+	crypt_ptr<Shot> match;
+	for (auto& shot : shots)
+	{
+		if (!shot.accepts_event(tick, max_age) || shot.index != index || !shot.matches_weapon(weapon) ||
+			(shot.hurt && shot.expected_bullets == 1))
+			continue;
+		if (match)
+		{
+			shot.ambiguous = true;
+			match->ambiguous = true;
+		}
+		if (!match || (shot.fire_sequence && shot.fire_sequence == fire_sequence))
+			match = &shot;
+	}
+	if (match && !match->fire_sequence)
+		match->ambiguous = true; // Hurt confirms damage, but fire correlation is still provisional.
+	return match;
 }
 
 crypt_ptr<Shot> Aim::find_impact_shot(unsigned int fire_sequence)
@@ -665,6 +706,7 @@ void Aim::commit_shot(crypt_ptr <CUserCmd> cmd)
 	pending_shot.command_number = cmd->command_number;
 	pending_shot.tickcount = globals->tickcount;
 	pending_shot.outgoing = *ctx->send_packet.get();
+	pending_shot.sent_tickcount = pending_shot.outgoing ? globals->tickcount : -1;
 	pending_shot.packet_command_number = pending_shot.outgoing ? cmd->command_number : 0;
 	pending_shot.choked_commands = clientstate->m_nChokedCommands;
 	pending_shot.state = SHOT_SENT;
