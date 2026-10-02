@@ -18,7 +18,7 @@ public:
 	{
 		unsigned int index = 0;
 
-		while (true)
+		while (index < m_VTSize)
 		{
 			if (crypt_hash_rn(index) == iIndex)
 				break;
@@ -26,7 +26,7 @@ public:
 			++index;
 		}
 
-		if (index <= (int)m_VTSize && m_OldVT)
+		if (index < m_VTSize && m_OldVT)
 			return (Fn)m_OldVT.get()[index];
 
 		return nullptr;
@@ -36,5 +36,5 @@ private:
 
 	crypt_ptr <PDWORD> m_ClassBase;
 	crypt_ptr <DWORD> m_NewVT, m_OldVT;
-	DWORD m_VTSize;
+	DWORD m_VTSize = 0;
 };

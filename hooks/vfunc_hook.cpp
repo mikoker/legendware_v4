@@ -20,6 +20,9 @@ vmthook::~vmthook()
 
 bool vmthook::initialize(crypt_ptr <PDWORD> ppdwClassBase)
 {
+	if (!ppdwClassBase || !*ppdwClassBase.get())
+		return false;
+
 	m_ClassBase = ppdwClassBase;
 	m_OldVT = *ppdwClassBase.get();
 	m_VTSize = get_vt_count(*ppdwClassBase.get());
@@ -51,7 +54,7 @@ DWORD vmthook::hook_function(DWORD dwNewFunc, unsigned int iIndex)
 {
 	unsigned int index = 0;
 
-	while (true)
+	while (index < m_VTSize)
 	{
 		if (crypt_hash_rn(index) == iIndex)
 			break;
@@ -59,7 +62,7 @@ DWORD vmthook::hook_function(DWORD dwNewFunc, unsigned int iIndex)
 		++index;
 	}
 
-	if (m_NewVT && m_OldVT && index <= m_VTSize)
+	if (m_NewVT && m_OldVT && index < m_VTSize)
 	{
 		m_NewVT.get()[index + 1] = dwNewFunc;
 		return m_OldVT.get()[index];
