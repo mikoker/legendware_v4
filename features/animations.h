@@ -228,19 +228,35 @@ public:
 		animation_state = *player->get_animation_state().get();
 	}
 
-	virtual void apply(int matrix_index = MATRIX_MAIN, bool backup = false)
+	virtual bool can_apply(int matrix_index = MATRIX_MAIN, bool backup = false)
 	{
 		if (i < 1 || i > 64)
-			return;
+			return false;
 		auto player = crypt_ptr <Player> ((Player*)entitylist->GetClientEntity(i));
-
-		if (!player->valid())
-			return;
+		if (!player || !player->valid())
+			return false;
 		if (matrix_index < MATRIX_MAIN || matrix_index >= MATRIX_MAX || bone_count < 0 || bone_count > MAXSTUDIOBONES ||
 			bone_count > player->m_CachedBoneData().NumAllocated() ||
 			(bone_count > 0 && (!player->m_CachedBoneData().Base() || !(matrix_ready & (1u << matrix_index)))) ||
 			(!backup && (bone_count == 0 || !(matrix_mask[matrix_index] & BONE_USED_BY_HITBOX))))
-			return;
+			return false;
+		return true;
+	}
+
+	virtual bool apply(int matrix_index = MATRIX_MAIN, bool backup = false)
+	{
+		if (i < 1 || i > 64)
+			return false;
+		auto player = crypt_ptr <Player> ((Player*)entitylist->GetClientEntity(i));
+		if (!player || !player->valid())
+		{
+			if (backup)
+				historical_bone_cache[i] = {};
+			return false;
+		}
+		const auto cache_ready = can_apply(matrix_index, backup);
+		if (!cache_ready && !backup)
+			return false;
 
 		player->m_angEyeAngles() = angles;
 		player->set_abs_angles(abs_angles);
@@ -255,7 +271,7 @@ public:
 
 		memcpy(player->get_animation_layer().get(), layers[LAYERS_ORIGINAL], player->get_animation_layers_count() * sizeof(AnimationLayer));
 
-		if (matrix_index >= MATRIX_MAIN && matrix_index < MATRIX_MAX)
+		if (cache_ready)
 		{
 			player->m_CachedBoneData().m_Size = bone_count;
 			if (bone_count > 0)
@@ -269,12 +285,23 @@ public:
 				globals->curtime = current_backup_curtime;
 			}
 		}
+		if (!cache_ready)
+		{
+			// Restore the original pose, but invalidate a cache whose allocation changed.
+			player->m_iMostRecentModelBoneCounter() = player->m_iModelBoneCounter() - 1;
+			player->m_BoneAccessor().m_ReadableBones = 0;
+			player->m_BoneAccessor().m_WritableBones = 0;
+			player->m_flLastBoneSetupTime() = -FLT_MAX;
+			historical_bone_cache[i] = {};
+			return false;
+		}
 
 		player->m_iMostRecentModelBoneCounter() = backup ? recent_bone_counter : player->m_iModelBoneCounter();
 		player->m_BoneAccessor().m_ReadableBones = backup ? readable_bones : matrix_mask[matrix_index];
 		player->m_BoneAccessor().m_WritableBones = backup ? writable_bones : matrix_mask[matrix_index];
 		player->m_flLastBoneSetupTime() = backup ? last_bone_setup_time : simulation_time;
 		historical_bone_cache[i] = backup ? previous_bone_cache : HistoricalBoneCache{ player.get(), matrix_mask[matrix_index] };
+		return true;
 	}
 
 	virtual bool valid(bool extra_checks = true, float limit = 0.2f, bool visual = false, int validation_tickbase = -1)

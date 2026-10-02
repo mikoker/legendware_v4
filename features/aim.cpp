@@ -234,7 +234,14 @@ void Aim::scan()
 		}
 
 		if (!found_backup)
+		{
 			backup.emplace_back(AnimationData(target.player));
+			if (!backup.back().can_apply(MATRIX_MAIN, true))
+			{
+				backup.pop_back();
+				continue;
+			}
+		}
 
 		vector <crypt_ptr <AnimationData>> scan_data;
 
@@ -382,7 +389,8 @@ void Aim::scan()
 
 		for (auto& data : scan_data)
 		{
-			data->apply();
+			if (!data->apply())
+				continue;
 
 			scan_hitboxes(target.player, data);
 
@@ -416,7 +424,8 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 	{
 		if (candidate.data->immune || candidate.player->m_bGunGameImmunity())
 			return false;
-		candidate.data->apply();
+		if (!candidate.data->apply())
+			return false;
 		auto angle = math::calculate_angle(ctx->shoot_position, candidate.point.point);
 		auto required_damage = config->rage.force_damage_key.state ? config->rage.weapon[ctx->weapon_config].force_damage_value : config->rage.weapon[ctx->weapon_config].minimum_damage;
 		if (required_damage > 100)

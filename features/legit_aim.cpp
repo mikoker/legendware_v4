@@ -74,7 +74,14 @@ void LegitAim::scan()
 		}
 
 		if (!found_backup)
+		{
 			backup.emplace_back(AnimationData(target.player));
+			if (!backup.back().can_apply(MATRIX_MAIN, true))
+			{
+				backup.pop_back();
+				continue;
+			}
+		}
 
 		auto first = true;
 
@@ -89,7 +96,8 @@ void LegitAim::scan()
 			if (!data->valid(true, config->legit.backtrack_limit ? (float)config->legit.backtrack_limit * 0.001f : 0.2f))
 				continue;
 
-			data->apply();
+			if (!data->apply())
+				continue;
 			scan_hitboxes(target.player, data);
 		}
 	}
@@ -189,7 +197,14 @@ void LegitAim::automatic_fire(crypt_ptr <CUserCmd> cmd)
 			}
 
 			if (!found_backup)
+			{
 				backup.emplace_back(AnimationData(player));
+				if (!backup.back().can_apply(MATRIX_MAIN, true))
+				{
+					backup.pop_back();
+					continue;
+				}
+			}
 
 			auto first = true;
 			auto minimum_damage = config->legit.weapon[ctx->weapon_config].minimum_damage;
@@ -209,7 +224,8 @@ void LegitAim::automatic_fire(crypt_ptr <CUserCmd> cmd)
 				if (!data.valid(true, config->legit.backtrack_limit ? (float)config->legit.backtrack_limit * 0.001f : 0.2f))
 					continue;
 
-				data.apply();
+				if (!data.apply())
+					continue;
 
 				Vector view_angles;
 				engine->GetViewAngles(view_angles);

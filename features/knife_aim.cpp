@@ -89,7 +89,14 @@ void KnifeAim::scan()
 		}
 
 		if (!found_backup)
+		{
 			backup.emplace_back(AnimationData(target.player));
+			if (!backup.back().can_apply(MATRIX_MAIN, true))
+			{
+				backup.pop_back();
+				continue;
+			}
+		}
 
 		final_target.player = target.player;
 		final_target.data = data;
@@ -107,7 +114,8 @@ void KnifeAim::fire(crypt_ptr <CUserCmd> cmd)
 	if (!config->rage.automatic_fire && !(cmd->buttons & IN_ATTACK) && !(cmd->buttons & IN_ATTACK2))
 		return;
 
-	final_target.data->apply();
+	if (!final_target.data->apply())
+		return;
 
 	auto mins = final_target.data->origin + final_target.data->mins;
 	auto maxs = final_target.data->origin + final_target.data->maxs;

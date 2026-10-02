@@ -14,6 +14,7 @@ stub = r"""
 #include <cstdint>
 #include <cstring>
 #include <algorithm>
+#include <cfloat>
 template<class T> struct crypt_ptr {
     T* p; crypt_ptr(T* v=nullptr):p(v) {}
     T* get() const { return p; } T* operator->() const { return p; }
@@ -117,6 +118,29 @@ int main() {
     record.matrix_ready=1u<<MATRIX_MAIN;player.bones.capacity=1;
     record.apply();assert(player.origin.x!=123);
     assert(convar.value==1);
+    player.bones.capacity=128;
+    // Nested transactions restore the preceding historical cache, then the engine cache.
+    assert(record.apply());
+    AnimationData nested_backup(&player);
+    record.matrix[MATRIX_MAIN][0].m[0][0]=43;
+    assert(record.apply());
+    assert(nested_backup.apply(MATRIX_MAIN,true));
+    assert(player.bones.data[0].m[0][0]==42 && historical_bone_cache[1].player==&player);
+    assert(backup.apply(MATRIX_MAIN,true));
+    assert(historical_bone_cache[1].player==nullptr);
+    // A legitimate empty engine cache can be captured and restored.
+    player.bones.m_Size=0;
+    AnimationData empty_backup(&player);
+    assert(empty_backup.can_apply(MATRIX_MAIN,true));
+    assert(record.apply());
+    assert(empty_backup.apply(MATRIX_MAIN,true) && player.bones.Count()==0);
+    assert(historical_bone_cache[1].player==nullptr);
+    // If the allocation changes externally, restore pose and permit engine fallback.
+    player.bones.m_Size=2;
+    assert(record.apply());
+    player.bones.capacity=1;
+    assert(!backup.apply(MATRIX_MAIN,true));
+    assert(historical_bone_cache[1].player==nullptr && player.accessor.m_ReadableBones==0);
 }
 """
 with tempfile.TemporaryDirectory() as tmp:
