@@ -7,6 +7,7 @@
 #include "prediction.h"
 #include "logs.h"
 #include "resolver.h"
+#include "bone_cache.h"
 
 enum ROTATE_MODE
 {
@@ -53,6 +54,7 @@ public:
 
 	matrix3x4_t matrix[MATRIX_MAX][MAXSTUDIOBONES];
 	unsigned int matrix_ready = 0;
+	int matrix_mask[MATRIX_MAX] = {};
 	AnimationLayer layers[LAYERS_MAX][13];
 	ShortAnimationLayer server_layers[13];
 
@@ -91,6 +93,10 @@ public:
 	float collision_change_time = 0.0f;
 	float collision_change_origin = 0.0f;
 	uint32_t recent_bone_counter = 0;
+	int readable_bones = 0;
+	int writable_bones = 0;
+	float last_bone_setup_time = 0.0f;
+	HistoricalBoneCache previous_bone_cache;
 
 	Vector angles;
 	Vector abs_angles;
@@ -143,7 +149,7 @@ public:
 		maxs.Zero();
 	}
 
-	AnimationData(crypt_ptr <Player> player)
+	AnimationData(crypt_ptr <Player> player) : AnimationData(player->EntIndex())
 	{
 		shot = false;
 		backup = false;
@@ -170,8 +176,19 @@ public:
 
 		if (store_extra)
 		{
-			memcpy(matrix[MATRIX_MAIN], player->m_CachedBoneData().Base(), player->m_CachedBoneData().Count() * sizeof(matrix3x4_t));
-			matrix_ready = 1u << MATRIX_MAIN;
+			const auto count = player->m_CachedBoneData().Count();
+			matrix_ready = 0;
+			if (count > 0 && count <= MAXSTUDIOBONES && player->m_CachedBoneData().Base())
+			{
+				memcpy(matrix[MATRIX_MAIN], player->m_CachedBoneData().Base(), count * sizeof(matrix3x4_t));
+				matrix_ready = 1u << MATRIX_MAIN;
+			}
+			matrix_mask[MATRIX_MAIN] = player->m_BoneAccessor().m_ReadableBones;
+			readable_bones = player->m_BoneAccessor().m_ReadableBones;
+			writable_bones = player->m_BoneAccessor().m_WritableBones;
+			last_bone_setup_time = player->m_flLastBoneSetupTime();
+			if (i >= 1 && i <= 64)
+				previous_bone_cache = historical_bone_cache[i];
 			memcpy(layers[LAYERS_ORIGINAL], player->get_animation_layer().get(), player->get_animation_layers_count() * sizeof(AnimationLayer));
 		}
 
@@ -213,9 +230,16 @@ public:
 
 	virtual void apply(int matrix_index = MATRIX_MAIN, bool backup = false)
 	{
+		if (i < 1 || i > 64)
+			return;
 		auto player = crypt_ptr <Player> ((Player*)entitylist->GetClientEntity(i));
 
 		if (!player->valid())
+			return;
+		if (matrix_index < MATRIX_MAIN || matrix_index >= MATRIX_MAX || bone_count < 0 || bone_count > MAXSTUDIOBONES ||
+			bone_count > player->m_CachedBoneData().NumAllocated() ||
+			(bone_count > 0 && (!player->m_CachedBoneData().Base() || !(matrix_ready & (1u << matrix_index)))) ||
+			(!backup && (bone_count == 0 || !(matrix_mask[matrix_index] & BONE_USED_BY_HITBOX))))
 			return;
 
 		player->m_angEyeAngles() = angles;
@@ -234,7 +258,8 @@ public:
 		if (matrix_index >= MATRIX_MAIN && matrix_index < MATRIX_MAX)
 		{
 			player->m_CachedBoneData().m_Size = bone_count;
-			memcpy(player->m_CachedBoneData().Base(), matrix[matrix_index], bone_count * sizeof(matrix3x4_t));
+			if (bone_count > 0)
+				memcpy(player->m_CachedBoneData().Base(), matrix[matrix_index], bone_count * sizeof(matrix3x4_t));
 
 			if (!backup)
 			{
@@ -246,6 +271,10 @@ public:
 		}
 
 		player->m_iMostRecentModelBoneCounter() = backup ? recent_bone_counter : player->m_iModelBoneCounter();
+		player->m_BoneAccessor().m_ReadableBones = backup ? readable_bones : matrix_mask[matrix_index];
+		player->m_BoneAccessor().m_WritableBones = backup ? writable_bones : matrix_mask[matrix_index];
+		player->m_flLastBoneSetupTime() = backup ? last_bone_setup_time : simulation_time;
+		historical_bone_cache[i] = backup ? previous_bone_cache : HistoricalBoneCache{ player.get(), matrix_mask[matrix_index] };
 	}
 
 	virtual bool valid(bool extra_checks = true, float limit = 0.2f, bool visual = false, int validation_tickbase = -1)
