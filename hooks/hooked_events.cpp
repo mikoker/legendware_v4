@@ -155,13 +155,13 @@ void Events::FireGameEvent(IGameEvent* event)
 			case HITGROUP_STOMACH:
 				return crypt_str("stomach");
 			case HITGROUP_LEFTARM:
-				return crypt_str("right arm");
-			case HITGROUP_RIGHTARM:
 				return crypt_str("left arm");
+			case HITGROUP_RIGHTARM:
+				return crypt_str("right arm");
 			case HITGROUP_LEFTLEG:
-				return crypt_str("right leg");
-			case HITGROUP_RIGHTLEG:
 				return crypt_str("left leg");
+			case HITGROUP_RIGHTLEG:
+				return crypt_str("right leg");
 			default:
 				return crypt_str("generic");
 			}
@@ -178,13 +178,13 @@ void Events::FireGameEvent(IGameEvent* event)
 			case HITGROUP_STOMACH:
 				return HITBOX_STOMACH;
 			case HITGROUP_LEFTARM:
-				return HITBOX_RIGHT_UPPER_ARM;
-			case HITGROUP_RIGHTARM:
 				return HITBOX_LEFT_UPPER_ARM;
+			case HITGROUP_RIGHTARM:
+				return HITBOX_RIGHT_UPPER_ARM;
 			case HITGROUP_LEFTLEG:
-				return HITBOX_RIGHT_THIGH;
-			case HITGROUP_RIGHTLEG:
 				return HITBOX_LEFT_THIGH;
+			case HITGROUP_RIGHTLEG:
+				return HITBOX_RIGHT_THIGH;
 			default:
 				return HITBOX_NECK;
 			}
