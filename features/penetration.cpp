@@ -85,7 +85,7 @@ void Penetration::scale_damage(crypt_ptr <Player> player, CGameTrace& enter_trac
 	switch (enter_trace.hitgroup)
 	{
 	case HITGROUP_HEAD:
-		current_damage *= 4.0f * head_scale;
+		current_damage *= ctx->weapon_data()->headshot_multiplier * head_scale;
 		break;
 	case HITGROUP_CHEST:
 		current_damage *= body_scale; //-V1037
@@ -137,9 +137,6 @@ bool Penetration::trace_to_exit(CGameTrace& enter_trace, CGameTrace& exit_trace,
 	auto enter_point_contents = 0;
 	auto point_contents = 0;
 
-	auto is_window = false;
-	auto flag = false;
-
 	auto distance = 0.0f;
 
 	Vector start; //-V688
@@ -189,41 +186,14 @@ bool Penetration::trace_to_exit(CGameTrace& enter_trace, CGameTrace& exit_trace,
 			continue;
 		}
 
-		auto surface_name = (int*)enter_trace.surface.name; //-V206
-
-		if (surface_name)
+		const auto surface_name = enter_trace.surface.name;
+		if (surface_name && (strncmp(surface_name, "maps/cs_office/glass/urban_glass", 30) == 0 ||
+			strncmp(surface_name, "maps/de_lake/glass/glass", 24) == 0))
 		{
-			if (*surface_name == 1936744813 && surface_name[1] == 1601397551 && surface_name[2] == 1768318575 && surface_name[3] == 1731159395 && surface_name[4] == 1936941420 && surface_name[5] == 1651668271 && surface_name[6] == 1734307425 && surface_name[7] == 1936941420)
-				is_window = true;
-			else
-			{
-				is_window = false;
-
-				if (*surface_name != 1936744813)
-					goto LABEL_34;
-			}
-
-			if (surface_name[1] == 1600480303 && surface_name[2] == 1701536108 && surface_name[3] == 1634494255 && surface_name[4] == 1731162995 && surface_name[5] == 1936941420)
-			{
-				flag = true;
-
-			LABEL_35:
-				if (is_window || flag)
-				{
-					exit_trace = enter_trace;
-					exit_trace.endpos = end + direction;
-					return true;
-				}
-
-				goto LABEL_37;
-			}
-
-		LABEL_34:
-			flag = false;
-			goto LABEL_35;
+			exit_trace = enter_trace;
+			exit_trace.endpos = end + direction;
+			return true;
 		}
-
-	LABEL_37:
 		if (!exit_trace.DidHit() || exit_trace.startsolid)
 		{
 			if (enter_trace.hit_entity && enter_trace.hit_entity->EntIndex() && is_breakable_entity(enter_trace.hit_entity))
@@ -265,6 +235,8 @@ bool Penetration::handle_bullet_penetration(CGameTrace& enter_trace, Vector& sho
 	auto surf_nodraw = enter_trace.surface.flags & SURF_NODRAW;
 
 	auto enter_surface_data = physicssurface->GetSurfaceData(enter_trace.surface.surfaceProps);
+	if (!enter_surface_data)
+		return false;
 	auto enter_material = enter_surface_data->game.material;
 
 	auto is_solid_surf = enter_trace.contents >> 3 & CONTENTS_SOLID;
@@ -311,7 +283,9 @@ bool Penetration::handle_bullet_penetration(CGameTrace& enter_trace, Vector& sho
 			combined_penetration_modifier = 2.0f;
 	}
 
-	auto penetration_modifier = max(0.0f, 1.0f / combined_penetration_modifier);
+	if (combined_penetration_modifier <= 0.0f)
+		return false;
+	auto penetration_modifier = 1.0f / combined_penetration_modifier;
 	auto penetration_distance = (exit_trace.endpos - enter_trace.endpos).Length();
 
 	penetration_distance = penetration_distance * penetration_distance * penetration_modifier * 0.041666668f;
@@ -344,9 +318,12 @@ void Penetration::clip_trace_to_player(crypt_ptr <Player> player, const Vector& 
 	auto maxs = collideable->OBBMaxs();
 
 	auto direction = end - start;
+	const auto length = direction.Length();
+	if (length <= FLT_EPSILON || (filter && !filter->ShouldHitEntity(player.get(), mask)))
+		return;
 	direction.Normalize();
 
-	auto center = (maxs + mins) / 0.5f;
+	auto center = (maxs + mins) * 0.5f;
 	auto position = center + player->m_vecOrigin();
 
 	auto to = position - start;
@@ -355,9 +332,9 @@ void Penetration::clip_trace_to_player(crypt_ptr <Player> player, const Vector& 
 	auto range = 0.0f;
 
 	if (range_along < 0.0f)
-		range = -to.Length();
-	else if (range_along > direction.Length())
-		range = -(position - end).Length();
+		range = to.Length();
+	else if (range_along > length)
+		range = (position - end).Length();
 	else
 	{
 		auto ray = position - (direction * range_along + start);
@@ -373,7 +350,8 @@ void Penetration::clip_trace_to_player(crypt_ptr <Player> player, const Vector& 
 
 		enginetrace->ClipRayToEntity(ray, mask, player.get(), &current_trace);
 
-		if (trace->fraction > current_trace.fraction)
+		// The player ray may be extended; fractions from different rays are not comparable.
+		if (current_trace.DidHit() && current_trace.endpos.DistToSqr(start) < trace->endpos.DistToSqr(start))
 			*trace.get() = current_trace;
 	}
 }
@@ -408,6 +386,7 @@ bool Penetration::fire_bullet(Vector& direction, bool& visible, float& current_d
 
 		if (player)
 			clip_trace_to_player(player, current_shoot_position, end + direction * 40.0f, MASK_SHOT_HULL | CONTENTS_HITBOX, &filter, &enter_trace);
+		enter_trace.fraction = clamp(current_shoot_position.DistTo(enter_trace.endpos) / max_range, 0.0f, 1.0f);
 
 		if (enter_trace.fraction == 1.0f) //-V550
 			break;

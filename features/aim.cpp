@@ -424,7 +424,7 @@ void Aim::fire(crypt_ptr <CUserCmd> cmd)
 		else
 			required_damage = clamp(required_damage, 1, candidate.player->m_iHealth());
 		auto required_hitchance = exploits->double_tap ? config->rage.weapon[ctx->weapon_config].double_tap_hit_chance : config->rage.weapon[ctx->weapon_config].hit_chance;
-		return jump_scout || ctx->weapon_config == WEAPON_CONFIG_TASER || is_hit_chanced((float)required_hitchance, angle, MATRIX_MAIN, candidate.hitbox, candidate.player, candidate.data, true, required_damage);
+		return is_hit_chanced((float)required_hitchance, angle, MATRIX_MAIN, candidate.hitbox, candidate.player, candidate.data, true, required_damage);
 	};
 
 	if (!validate(final_target))
