@@ -25,25 +25,34 @@ void __fastcall hooked_updateclientsideanimation(Player* player, void* edx)
 
 		if (front->dormant)
 			return;
-
-		if (front->render_origin == player->GetAbsOrigin())
+		if (historical_bone_cache[player->EntIndex()].player == player)
 			return;
-
-		for (auto i = 0; i < front->bone_count; ++i)
+		if (!(front->matrix_ready & (1u << MATRIX_VISUAL_INTERPOLATED)) || front->bone_count <= 0 ||
+			front->bone_count > MAXSTUDIOBONES || !player->m_CachedBoneData().Base() ||
+			front->bone_count > player->m_CachedBoneData().NumAllocated())
+			return ((UpdateClientSideAnimation)original_updateclientsideanimation)(player);
+		if (front->render_origin != player->GetAbsOrigin())
 		{
-			front->matrix[MATRIX_VISUAL_INTERPOLATED][i][0][3] -= front->render_origin.x;
-			front->matrix[MATRIX_VISUAL_INTERPOLATED][i][1][3] -= front->render_origin.y;
-			front->matrix[MATRIX_VISUAL_INTERPOLATED][i][2][3] -= front->render_origin.z;
-
-			front->matrix[MATRIX_VISUAL_INTERPOLATED][i][0][3] += player->GetAbsOrigin().x;
-			front->matrix[MATRIX_VISUAL_INTERPOLATED][i][1][3] += player->GetAbsOrigin().y;
-			front->matrix[MATRIX_VISUAL_INTERPOLATED][i][2][3] += player->GetAbsOrigin().z;
-
-			if (player->m_CachedBoneData().Count() > i)
-				player->m_CachedBoneData().Base()[i] = front->matrix[MATRIX_VISUAL_INTERPOLATED][i];
+			for (auto i = 0; i < front->bone_count; ++i)
+			{
+				front->matrix[MATRIX_VISUAL_INTERPOLATED][i][0][3] -= front->render_origin.x;
+				front->matrix[MATRIX_VISUAL_INTERPOLATED][i][1][3] -= front->render_origin.y;
+				front->matrix[MATRIX_VISUAL_INTERPOLATED][i][2][3] -= front->render_origin.z;
+				front->matrix[MATRIX_VISUAL_INTERPOLATED][i][0][3] += player->GetAbsOrigin().x;
+				front->matrix[MATRIX_VISUAL_INTERPOLATED][i][1][3] += player->GetAbsOrigin().y;
+				front->matrix[MATRIX_VISUAL_INTERPOLATED][i][2][3] += player->GetAbsOrigin().z;
+			}
 		}
 
 		front->render_origin = player->GetAbsOrigin();
+		memcpy(player->m_CachedBoneData().Base(), front->matrix[MATRIX_VISUAL_INTERPOLATED], front->bone_count * sizeof(matrix3x4_t));
+		player->m_CachedBoneData().m_Size = front->bone_count;
+		player->m_BoneAccessor().m_ReadableBones = front->matrix_mask[MATRIX_VISUAL_INTERPOLATED];
+		player->m_BoneAccessor().m_WritableBones = front->matrix_mask[MATRIX_VISUAL_INTERPOLATED];
+		player->m_iMostRecentModelBoneCounter() = player->m_iModelBoneCounter();
+		player->m_flLastBoneSetupTime() = front->simulation_time;
 		player->attachment_helper();
 	}
+	else
+		return ((UpdateClientSideAnimation)original_updateclientsideanimation)(player);
 }

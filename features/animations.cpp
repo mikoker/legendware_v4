@@ -653,7 +653,8 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 
 		memcpy(backup_layers, player->get_animation_layer().get(), player->get_animation_layers_count() * sizeof(AnimationLayer));
 
-		auto success = matrix != MATRIX_VISUAL_INTERPOLATED && player->setup_bones_rebuilded(BONE_USED_BY_HITBOX, data->matrix[matrix]);
+		const auto rebuilt = matrix != MATRIX_VISUAL_INTERPOLATED && player->setup_bones_rebuilded(BONE_USED_BY_HITBOX, data->matrix[matrix]);
+		auto success = rebuilt;
 		const auto mask = matrix == MATRIX_VISUAL_INTERPOLATED ? BONE_USED_BY_ANYTHING : BONE_USED_BY_HITBOX;
 
 		if (!success)
@@ -661,7 +662,7 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 		if (success)
 		{
 			data->matrix_ready |= 1u << matrix;
-			data->matrix_mask[matrix] = mask;
+			data->matrix_mask[matrix] = rebuilt ? mask : player->m_BoneAccessor().m_ReadableBones;
 		}
 
 		player->set_abs_origin(backup_abs_origin);
@@ -795,7 +796,12 @@ bool Animations::update(crypt_ptr <Player> player, crypt_ptr <AnimationData> dat
 
 	setup_matrix(player, data, MATRIX_VISUAL_INTERPOLATED, roll);
 
-	memcpy(data->matrix[MATRIX_VISUAL], data->matrix[MATRIX_VISUAL_INTERPOLATED], MAXSTUDIOBONES * sizeof(matrix3x4_t));
+	if (data->matrix_ready & (1u << MATRIX_VISUAL_INTERPOLATED))
+	{
+		memcpy(data->matrix[MATRIX_VISUAL], data->matrix[MATRIX_VISUAL_INTERPOLATED], MAXSTUDIOBONES * sizeof(matrix3x4_t));
+		data->matrix_mask[MATRIX_VISUAL] = data->matrix_mask[MATRIX_VISUAL_INTERPOLATED];
+		data->matrix_ready |= 1u << MATRIX_VISUAL;
+	}
 
 	globals->curtime = backup_curtime;
 	globals->frametime = backup_frametime;

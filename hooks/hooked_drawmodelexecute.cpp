@@ -249,7 +249,8 @@ void __fastcall hooked_drawmodelexecute(IVModelRender* ecx, void* edx, IMatRende
 	{
 		for (auto& record : animations->animation_data[info.entity_index])
 		{
-			if (record.invalid || record.dormant || record.simulation_time == player->m_flSimulationTime())
+			if (record.invalid || record.dormant || !(record.matrix_ready & (1u << MATRIX_VISUAL)) ||
+				record.simulation_time == player->m_flSimulationTime())
 				continue;
 
 			chams->MaterialOverride(cfg.chams_ghost_type, cfg.chams_ghost_clr);
