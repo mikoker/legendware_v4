@@ -484,20 +484,21 @@ void Player::update_animations()
 	if (!animstate)
 		return;
 
+	if (!force_animations_data())
+		return;
+
 	if (animstate->last_update_time == globals->curtime)
-		animstate->last_update_time = globals->curtime + globals->intervalpertick;
+		animstate->last_update_time = globals->curtime - globals->intervalpertick;
 
 	if (animstate->last_update_frame == globals->framecount)
 		animstate->last_update_frame = globals->framecount - 1;
-
-	if (!force_animations_data())
-		return;
 
 	auto bone_snapshot_first = m_BoneSnapshotFirst();
 	auto bone_snapshot_second = m_BoneSnapshotSecond();
 
 	auto backup_eflags = m_iEFlags();
 	auto backup_ishltv = m_bIsHLTV();
+	auto backup_updating_animation = ctx->updating_animation;
 
 	m_BoneSnapshotFirst() = 1.0f;
 	m_BoneSnapshotSecond() = 1.0f;
@@ -508,7 +509,7 @@ void Player::update_animations()
 
 	ctx->updating_animation = true;
 	call_virtual <void(__thiscall*)(void*)>(this, INDEX_UPDATE_CLIENTSIDE_ANIMATION)(this);
-	ctx->updating_animation = false;
+	ctx->updating_animation = backup_updating_animation;
 
 	m_iEFlags() = backup_eflags;
 	m_bIsHLTV() = backup_ishltv;
